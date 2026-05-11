@@ -1,0 +1,3863 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI女友聊天系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
+            background: #f5f5f5;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 顶部标题栏 */
+        .top-bar {
+            background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .top-bar .title {
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .user-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-control input {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 20px;
+            font-size: 14px;
+            width: 180px;
+            outline: none;
+        }
+
+        .user-control button {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.25);
+            border: 1px solid rgba(255,255,255,0.4);
+            border-radius: 20px;
+            color: white;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .user-control button:hover {
+            background: rgba(255,255,255,0.35);
+        }
+
+        /* 模型控制面板 */
+        .model-control {
+            position: relative;
+        }
+
+        .model-control-btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.25);
+            border: 1px solid rgba(255,255,255,0.4);
+            border-radius: 20px;
+            color: white;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .model-control-btn:hover {
+            background: rgba(255,255,255,0.35);
+        }
+
+        .model-control-btn .current-model {
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .model-panel {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 10px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            padding: 20px;
+            min-width: 300px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .model-panel.active {
+            display: block;
+        }
+
+        .model-panel h3 {
+            margin: 0 0 15px 0;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .model-option {
+            margin-bottom: 15px;
+        }
+
+        .model-option label {
+            display: block;
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .model-option select,
+        .model-option input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .model-option select:focus,
+        .model-option input:focus {
+            border-color: #ff6b9d;
+        }
+
+        .model-info {
+            font-size: 12px;
+            color: #999;
+            margin-top: 5px;
+        }
+
+        .api-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .api-toggle label {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 26px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: #ff6b9d;
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(24px);
+        }
+
+        /* 主容器 */
+        .main-container {
+            display: flex;
+            height: calc(100vh - 60px);
+        }
+
+        /* 左侧女友列表 */
+        .sidebar {
+            width: 280px;
+            background: #fff;
+            border-right: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 10px 10px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 15px;
+            font-weight: 600;
+            color: #333;
+            display: flex;
+            gap: 5px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 8px 12px;
+            border: none;
+            background: #f0f0f0;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .tab-content.active {
+            display: flex;
+        }
+
+        .girlfriend-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .girlfriend-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid #f5f5f5;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .girlfriend-item:hover {
+            background: #f8f8f8;
+        }
+
+        .girlfriend-item.active {
+            background: #fff0f5;
+        }
+
+        .girlfriend-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .girlfriend-item.system .girlfriend-avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .girlfriend-item.custom .girlfriend-avatar {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .girlfriend-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .girlfriend-name {
+            font-size: 15px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+
+        .girlfriend-item.active .girlfriend-name {
+            color: #c44569;
+        }
+
+        .unread-badge {
+            background: #ff4757;
+            color: white;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            min-width: 18px;
+            text-align: center;
+        }
+
+        /* 添加女友按钮 */
+        .add-girlfriend-btn {
+            padding: 15px 20px;
+            border-top: 1px solid #f0f0f0;
+            text-align: center;
+        }
+
+        .add-girlfriend-btn button {
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .add-girlfriend-btn button:hover {
+            transform: scale(1.02);
+        }
+
+        /* 群组列表样式 */
+        .group-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .group-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid #f5f5f5;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .group-item:hover {
+            background: #f8f8f8;
+        }
+
+        .group-item.active {
+            background: #fff0f5;
+        }
+
+        .group-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .group-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .group-name {
+            font-size: 15px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .group-item.active .group-name {
+            color: #c44569;
+        }
+
+        .group-members {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .delete-group-btn {
+            background: none;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 5px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            opacity: 0.6;
+        }
+
+        .delete-group-btn:hover {
+            background: #fee;
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        .add-group-btn {
+            padding: 15px 20px;
+            border-top: 1px solid #f0f0f0;
+            text-align: center;
+        }
+
+        .add-group-btn button {
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .add-group-btn button:hover {
+            transform: scale(1.02);
+        }
+
+        /* 右侧聊天区域 */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #f5f5f5;
+        }
+
+        .chat-header {
+            padding: 15px 20px;
+            background: #fff;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .chat-header .chat-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .chat-header .chat-info h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .chat-header .chat-info p {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .chat-header .chat-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-header .chat-actions button {
+            padding: 6px 12px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .chat-header .chat-actions button:hover {
+            background: #e0e0e0;
+        }
+
+        /* 设置下拉菜单 */
+        .settings-dropdown {
+            position: relative;
+        }
+
+        .settings-btn {
+            width: 36px !important;
+            height: 36px !important;
+            padding: 0 !important;
+            font-size: 20px !important;
+            font-weight: bold !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            background: #f0f0f0 !important;
+            border: none !important;
+            border-radius: 50% !important;
+            cursor: pointer;
+            color: #666;
+            transition: all 0.2s;
+        }
+
+        .settings-btn:hover {
+            background: #e0e0e0 !important;
+            transform: rotate(90deg);
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            min-width: 180px;
+            overflow: hidden;
+            display: none;
+            z-index: 1000;
+            animation: dropdownFadeIn 0.2s ease;
+        }
+
+        .dropdown-menu.show {
+            display: block;
+        }
+
+        @keyframes dropdownFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .dropdown-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .dropdown-item:hover {
+            background: #f5f5f5;
+        }
+
+        .dropdown-item.danger {
+            color: #e74c3c;
+        }
+
+        .dropdown-item.danger:hover {
+            background: #fee;
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background: #f0f0f0;
+            margin: 4px 0;
+        }
+
+        /* 消息区域 */
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .message {
+            display: flex;
+            margin-bottom: 20px;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            flex-shrink: 0;
+            margin-right: 10px;
+        }
+
+        .message.user .message-avatar {
+            order: 2;
+            margin-right: 0;
+            margin-left: 10px;
+            background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);
+        }
+
+        .message-content {
+            max-width: 60%;
+            position: relative;
+        }
+
+        .message-bubble {
+            padding: 12px 16px;
+            border-radius: 18px;
+            font-size: 15px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+        .message.assistant .message-bubble {
+            background: #fff;
+            color: #333;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.user .message-bubble {
+            background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message-time {
+            font-size: 11px;
+            color: #999;
+            margin-top: 5px;
+            padding: 0 4px;
+        }
+
+        .message.user .message-time {
+            text-align: right;
+        }
+
+        /* 消息操作按钮 */
+        .message-actions {
+            position: absolute;
+            right: -10px;
+            bottom: -10px;
+            display: flex;
+            gap: 8px;
+            background: white;
+            padding: 6px;
+            border-radius: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .message-content {
+            position: relative;
+        }
+
+        .message.assistant:hover .message-actions {
+            opacity: 1;
+        }
+
+        .message-actions button {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 16px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .message-actions button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-edit {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-edit:hover:not(:disabled) {
+            background: #e0e0e0;
+            transform: scale(1.05);
+        }
+
+        .btn-save {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-save:hover:not(:disabled) {
+            background: #45a049;
+            transform: scale(1.05);
+        }
+
+        .btn-cancel {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-cancel:hover:not(:disabled) {
+            background: #da190b;
+            transform: scale(1.05);
+        }
+
+        .btn-regenerate {
+            background: #2196F3;
+            color: white;
+        }
+
+        .btn-regenerate:hover:not(:disabled) {
+            background: #0b7dda;
+            transform: scale(1.05);
+        }
+
+        /* 编辑对话框 */
+        .edit-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .edit-dialog {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            animation: slideUp 0.3s ease;
+        }
+
+        .edit-dialog h3 {
+            margin: 0 0 16px 0;
+            color: #333;
+            font-size: 18px;
+        }
+
+        .edit-dialog textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #4CAF50;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.6;
+            font-family: inherit;
+            resize: vertical;
+            outline: none;
+            margin-bottom: 16px;
+        }
+
+        .edit-dialog textarea:focus {
+            border-color: #45a049;
+        }
+
+        .edit-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .edit-buttons button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        /* Toast 提示 */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #333;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 4px;
+            z-index: 10000;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* 输入区域 */
+        .input-area {
+            padding: 15px 20px;
+            background: #fff;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .input-container textarea {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #e0e0e0;
+            border-radius: 20px;
+            font-size: 15px;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+            max-height: 120px;
+            line-height: 1.5;
+        }
+
+        .input-container textarea:focus {
+            border-color: #ff6b9d;
+        }
+
+        .send-btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            flex-shrink: 0;
+        }
+
+        .send-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* @按钮 */
+        .mention-btn {
+            padding: 10px 16px;
+            background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            flex-shrink: 0;
+            margin-right: 10px;
+            box-shadow: 0 2px 8px rgba(139, 92, 246, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mention-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 100%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .mention-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+
+        .mention-btn:hover::before {
+            opacity: 1;
+        }
+
+        .mention-btn:active {
+            transform: translateY(0);
+        }
+
+        /* 当有@的角色时，按钮显示高亮效果 */
+        .mention-btn.has-mentions {
+            background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 2px 8px rgba(139, 92, 246, 0.2);
+            }
+            50% {
+                box-shadow: 0 2px 16px rgba(236, 72, 153, 0.4);
+            }
+        }
+
+        /* @的角色标签 */
+        .mentioned-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 8px 16px;
+            min-height: 0;
+        }
+
+        .mention-tag {
+            display: inline-flex;
+            align-items: center;
+            background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 6px rgba(236, 72, 153, 0.25);
+            backdrop-filter: blur(10px);
+        }
+
+        .mention-tag .remove-mention {
+            margin-left: 8px;
+            cursor: pointer;
+            opacity: 0.7;
+            font-weight: bold;
+            font-size: 16px;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+
+        .mention-tag .remove-mention:hover {
+            opacity: 1;
+            background: rgba(255, 255, 255, 0.2);
+            transform: rotate(90deg);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.8) translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        /* 状态栏 */
+        .status-bar {
+            padding: 8px 20px;
+            background: #f8f8f8;
+            border-top: 1px solid #e0e0e0;
+            font-size: 12px;
+            color: #999;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4caf50;
+        }
+
+        .status-dot.disconnected {
+            background: #f44336;
+        }
+
+        .status-dot.loading {
+            background: #ff9800;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* 加载动画 */
+        .typing-indicator {
+            display: none;
+            padding: 10px 16px;
+            background: #fff;
+            border-radius: 18px;
+            border-bottom-left-radius: 4px;
+            width: fit-content;
+        }
+
+        .typing-indicator.active {
+            display: block;
+        }
+
+        .typing-indicator span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #999;
+            margin: 0 2px;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-10px); }
+        }
+
+        /* 空状态 */
+        .empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+        }
+
+        .empty-state .icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .empty-state p {
+            font-size: 16px;
+        }
+
+        /* 创建女友模态框 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #fff;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 450px;
+            max-height: 80vh;
+            overflow: auto;
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            font-size: 18px;
+            color: #333;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #999;
+            cursor: pointer;
+        }
+
+        .modal-close:hover {
+            color: #333;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .modal-footer {
+            padding: 15px 20px;
+            border-top: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .btn-cancel {
+            background: #f0f0f0;
+            color: #666;
+        }
+
+        .btn-confirm {
+            background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);
+            color: white;
+        }
+
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #aaa;
+        }
+
+        /* 欢迎消息 */
+        .welcome-message {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+
+        .welcome-message .emoji {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .welcome-message h2 {
+            font-size: 20px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .welcome-message p {
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部标题栏 -->
+    <div class="top-bar">
+        <div class="title">💕 AI女友聊天系统</div>
+        <div class="user-control">
+            <div class="model-control">
+                <button class="model-control-btn" id="modelControlBtn">
+                    <span>🤖</span>
+                    <span class="current-model" id="currentModelDisplay">默认模型</span>
+                    <span>▼</span>
+                </button>
+                <div class="model-panel" id="modelPanel">
+                    <h3>⚙️ 模型设置</h3>
+
+                    <div class="model-option">
+                        <label for="modelSelect">选择模型</label>
+                        <select id="modelSelect">
+                            <option value="">使用默认模型</option>
+                            <!-- 动态加载模型列表 -->
+                        </select>
+                        <div class="model-info" id="modelDescription"></div>
+                    </div>
+
+                    <div class="model-option" id="customApiSection" style="display: none;">
+                        <label for="customApiPath">自定义API路径</label>
+                        <input type="text" id="customApiPath" placeholder="例如: http://localhost:8003/v1">
+                        <div class="model-info">输入OpenAI兼容的API端点</div>
+                    </div>
+
+                    <div class="api-toggle">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="useAigirlApi">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <label for="useAigirlApi">使用AIGirl兼容API</label>
+                    </div>
+
+                    <div class="model-info" style="margin-top: 10px;">
+                        启用后将使用 /api/mobile/chat 端点
+                    </div>
+
+                    <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #f0f0f0;">
+                        <button id="testApiBtn" style="width: 100%; padding: 10px; background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%); border: none; border-radius: 8px; color: white; font-size: 14px; cursor: pointer;">
+                            🧪 测试API连接
+                        </button>
+                        <div class="model-info" id="testResult" style="margin-top: 10px; min-height: 20px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <input type="text" id="userIdInput" placeholder="输入你的用户ID" value="user_001">
+            <button id="switchUserBtn">切换用户</button>
+        </div>
+    </div>
+
+    <!-- 主容器 -->
+    <div class="main-container">
+        <!-- 左侧女友列表 -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <button class="tab-btn active" data-tab="girlfriends">👩 女友列表</button>
+                <button class="tab-btn" data-tab="groups">👥 群组列表</button>
+            </div>
+
+            <!-- 女友列表 -->
+            <div class="tab-content active" id="girlfriendsTab">
+                <div class="girlfriend-list" id="girlfriendList">
+                    <!-- 动态加载 -->
+                </div>
+                <div class="add-girlfriend-btn">
+                    <button id="createGirlfriendBtn">✨ 创建新女友</button>
+                </div>
+            </div>
+
+            <!-- 群组列表 -->
+            <div class="tab-content" id="groupsTab">
+                <div class="group-list" id="groupList">
+                    <!-- 动态加载 -->
+                </div>
+                <div class="add-group-btn">
+                    <button id="createGroupBtn">➕ 创建群组</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧聊天区域 -->
+        <div class="chat-area">
+            <div class="chat-header" id="chatHeader">
+                <div class="chat-avatar" id="chatAvatar">?</div>
+                <div class="chat-info">
+                    <h3 id="chatName">请选择女友/群聊</h3>
+                    <p id="chatStatus">选择左侧女友/群聊开始聊天</p>
+                </div>
+                <div class="chat-actions">
+                    <button id="clearHistoryBtn" class="chat-action-btn" style="display: none;">清空记录</button>
+                    <div class="settings-dropdown" id="groupSettingsDropdown" style="display: none;">
+                        <button class="settings-btn" id="groupSettingsBtn">⋮</button>
+                        <div class="dropdown-menu" id="groupSettingsMenu">
+                            <div class="dropdown-item" data-action="clear">🗑️ 清空聊天记录</div>
+                            <div class="dropdown-item" data-action="rename">✏️ 更改群名</div>
+                            <div class="dropdown-item" data-action="members">👥 管理成员</div>
+                            <div class="dropdown-divider"></div>
+                            <div class="dropdown-item danger" data-action="delete">❌ 删除群组</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="messages-container" id="messagesContainer">
+                <div class="welcome-message">
+                    <div class="emoji">🌸</div>
+                    <h2>欢迎来到AI女友聊天系统</h2>
+                    <p>从左侧选择一个女友开始聊天吧～</p>
+                </div>
+            </div>
+
+            <div class="typing-indicator" id="typingIndicator">
+                <span></span><span></span><span></span>
+            </div>
+
+            <div class="input-area">
+                <div class="input-container">
+                    <!-- 群聊模式显示@按钮 -->
+                    <button id="mentionBtn" class="mention-btn" style="display: none;">@</button>
+                    <textarea id="messageInput" placeholder="输入消息..." rows="1"></textarea>
+                    <button id="sendBtn" class="send-btn">发送</button>
+                </div>
+                <!-- @的角色标签显示 -->
+                <div id="mentionedTags" class="mentioned-tags"></div>
+            </div>
+
+            <div class="status-bar">
+                <div class="status-indicator">
+                    <span class="status-dot" id="statusDot"></span>
+                    <span id="statusText">已连接</span>
+                </div>
+                <div id="messageCount">0 条消息</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 创建女友模态框 -->
+    <div class="modal" id="createModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>创建新女友</h3>
+                <button class="modal-close" id="closeCreateModal">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>女友名称</label>
+                    <input type="text" id="newGfName" placeholder="例如：小美">
+                </div>
+                <div class="form-group">
+                    <label>性格描述</label>
+                    <textarea id="newGfPrompt" placeholder="描述她的性格特点..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-cancel" id="cancelCreateBtn">取消</button>
+                <button class="btn btn-confirm" id="confirmCreateBtn">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 创建群组模态框 -->
+    <div class="modal" id="createGroupModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>创建群组</h3>
+                <button class="modal-close" id="closeCreateGroupModal">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>群组名称</label>
+                    <input type="text" id="newGroupName" placeholder="例如：周末聚会">
+                </div>
+                <div class="form-group">
+                    <label>选择成员</label>
+                    <div id="memberSelectList" style="max-height: 200px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px;">
+                        <!-- 动态加载女友列表 -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-cancel" id="cancelCreateGroupBtn">取消</button>
+                <button class="btn btn-confirm" id="confirmCreateGroupBtn">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 更改群名模态框 -->
+    <div class="modal" id="renameGroupModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>更改群名</h3>
+                <button class="modal-close" id="closeRenameGroupModal">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>新群组名称</label>
+                    <input type="text" id="renameGroupNameInput" placeholder="输入新的群组名称">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-cancel" id="cancelRenameGroupBtn">取消</button>
+                <button class="btn btn-confirm" id="confirmRenameGroupBtn">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 管理成员模态框 -->
+    <div class="modal" id="manageMembersModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>管理群成员</h3>
+                <button class="modal-close" id="closeManageMembersModal">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>当前成员</label>
+                    <div id="currentMembersList" style="max-height: 150px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px; margin-bottom: 15px;">
+                        <!-- 动态加载 -->
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>添加成员</label>
+                    <div id="availableMembersList" style="max-height: 200px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px;">
+                        <!-- 动态加载 -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-cancel" id="cancelManageMembersBtn">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- @角色选择模态框 -->
+    <div class="modal" id="mentionModal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>选择要@的角色</h3>
+                <button class="modal-close" id="closeMentionModal">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="mentionCharacterList" style="max-height: 300px; overflow-y: auto;">
+                    <!-- 动态加载群组成员 -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-cancel" id="cancelMentionBtn">取消</button>
+                <button class="btn btn-primary" id="confirmMentionBtn">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 配置
+        const API_URL = window.location.origin;
+
+        // 状态
+        let currentUserId = 'user_001';
+        let currentGirlfriendId = null;
+        let currentSessionId = null;
+        let currentGirlfriendName = '';
+        let girlfriends = [];
+        let messageCount = 0;
+
+        // 模型相关状态
+        let selectedModel = '';  // 选中的模型ID，空字符串表示使用默认模型
+        let customApiPath = '';  // 自定义API路径
+        let useAigirlApi = true;  // 是否使用AIGirl兼容API（默认启用，支持Ollama等更多模型）
+        let availableModels = [];  // 可用模型列表
+
+        // 群聊相关状态
+        let currentGroupId = null;
+        let currentGroupName = '';
+        let groups = [];
+        let isGroupChat = false;  // 当前是否在群聊模式
+
+        // @功能相关状态
+        let mentionedGirlfriends = [];  // 已@的角色列表
+
+        // 保存每个女友的聊天记录和会话ID {girlfriend_id: {sessionId, messages: []}}
+        let girlfriendChats = {};
+
+        // DOM 元素
+        const userIdInput = document.getElementById('userIdInput');
+        const switchUserBtn = document.getElementById('switchUserBtn');
+        const girlfriendList = document.getElementById('girlfriendList');
+        const messagesContainer = document.getElementById('messagesContainer');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const chatName = document.getElementById('chatName');
+        const chatStatus = document.getElementById('chatStatus');
+        const chatAvatar = document.getElementById('chatAvatar');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const typingIndicator = document.getElementById('typingIndicator');
+        const messageCountEl = document.getElementById('messageCount');
+        const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+
+        // @功能相关DOM元素
+        const mentionBtn = document.getElementById('mentionBtn');
+        const mentionedTags = document.getElementById('mentionedTags');
+        const mentionModal = document.getElementById('mentionModal');
+        const mentionCharacterList = document.getElementById('mentionCharacterList');
+        const closeMentionModal = document.getElementById('closeMentionModal');
+        const confirmMentionBtn = document.getElementById('confirmMentionBtn');
+        const cancelMentionBtn = document.getElementById('cancelMentionBtn');
+
+        // 模型控制相关DOM元素
+        const modelControlBtn = document.getElementById('modelControlBtn');
+        const modelPanel = document.getElementById('modelPanel');
+        const modelSelect = document.getElementById('modelSelect');
+        const modelDescription = document.getElementById('modelDescription');
+        const customApiSection = document.getElementById('customApiSection');
+        const customApiPathInput = document.getElementById('customApiPath');
+        const useAigirlApiCheckbox = document.getElementById('useAigirlApi');
+        const currentModelDisplay = document.getElementById('currentModelDisplay');
+        const testApiBtn = document.getElementById('testApiBtn');
+        const testResult = document.getElementById('testResult');
+
+        // 从localStorage恢复会话状态
+        function restoreSessionState() {
+            const savedState = localStorage.getItem(`chat_state_${currentUserId}`);
+            if (savedState) {
+                try {
+                    return JSON.parse(savedState);
+                } catch (e) {
+                    console.error('解析会话状态失败:', e);
+                }
+            }
+            return {};
+        }
+
+        // 保存会话状态到localStorage
+        function saveSessionState(girlfriendId, sessionId) {
+            const state = restoreSessionState();
+            state[girlfriendId] = { sessionId, timestamp: Date.now() };
+            localStorage.setItem(`chat_state_${currentUserId}`, JSON.stringify(state));
+        }
+
+        // 初始化
+        async function init() {
+            await loadGirlfriends();
+            await loadGroups();  // 加载群组列表
+            checkConnection();
+            initModelControl();  // 初始化模型控制
+
+            // 初始化所有女友的 girlfriendChats 对象
+            girlfriends.forEach(gf => {
+                if (!girlfriendChats[gf.girlfriend_id]) {
+                    girlfriendChats[gf.girlfriend_id] = {};
+                }
+            });
+
+            // 恢复上次的会话状态
+            const savedState = restoreSessionState();
+            for (const [girlfriendId, sessionInfo] of Object.entries(savedState)) {
+                if (sessionInfo.sessionId) {
+                    if (!girlfriendChats[girlfriendId]) {
+                        girlfriendChats[girlfriendId] = {};
+                    }
+                    girlfriendChats[girlfriendId].sessionId = sessionInfo.sessionId;
+                }
+            }
+        }
+
+        // 加载群组列表
+        async function loadGroups() {
+            try {
+                const response = await fetch(`${API_URL}/groups?user_id=${currentUserId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    groups = data.groups || [];
+                    renderGroupList();
+                }
+            } catch (error) {
+                console.error('加载群组列表失败:', error);
+            }
+        }
+
+        // ============= 模型控制相关函数 =============
+
+        // 加载可用模型列表
+        async function loadModels() {
+            try {
+                const response = await fetch(`${API_URL}/api/models`);
+                const data = await response.json();
+
+                if (data.success && data.models) {
+                    availableModels = data.models;
+                    renderModelOptions(data.models);
+                    updateCurrentModelDisplay(data.current_model);
+                }
+            } catch (error) {
+                console.error('加载模型列表失败:', error);
+            }
+        }
+
+        // 渲染模型选项
+        function renderModelOptions(models) {
+            modelSelect.innerHTML = '<option value="">使用默认模型</option>';
+
+            models.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model.id;
+                option.textContent = `${model.description} ${model.is_default ? '(默认)' : ''}`;
+                option.dataset.description = model.description;
+                option.dataset.requiresApiKey = model.requires_api_key;
+                modelSelect.appendChild(option);
+            });
+
+            // 监听模型选择变化
+            modelSelect.addEventListener('change', (e) => {
+                selectedModel = e.target.value;
+                const selectedOption = e.target.options[e.target.selectedIndex];
+
+                // 更新模型描述
+                modelDescription.textContent = selectedOption.dataset.description || '';
+
+                // 如果选择的是需要自定义API的模型，显示API路径输入框
+                if (selectedModel && selectedOption.dataset.requiresApiKey === 'false') {
+                    customApiSection.style.display = 'block';
+                } else {
+                    customApiSection.style.display = 'none';
+                }
+
+                updateCurrentModelDisplay(selectedModel || '默认模型');
+                saveModelSettings();
+            });
+        }
+
+        // 更新当前模型显示
+        function updateCurrentModelDisplay(modelId) {
+            if (!modelId || modelId === '默认模型') {
+                currentModelDisplay.textContent = '默认模型';
+                return;
+            }
+
+            const model = availableModels.find(m => m.id === modelId);
+            if (model) {
+                // 截断过长的描述
+                const displayText = model.description.length > 15
+                    ? model.description.substring(0, 15) + '...'
+                    : model.description;
+                currentModelDisplay.textContent = displayText;
+            }
+        }
+
+        // 保存模型设置到localStorage
+        function saveModelSettings() {
+            const settings = {
+                selectedModel,
+                customApiPath: customApiPathInput.value,
+                useAigirlApi: useAigirlApiCheckbox.checked
+            };
+            localStorage.setItem('model_settings', JSON.stringify(settings));
+        }
+
+        // 加载模型设置
+        function loadModelSettings() {
+            const saved = localStorage.getItem('model_settings');
+            if (saved) {
+                try {
+                    const settings = JSON.parse(saved);
+                    selectedModel = settings.selectedModel || '';
+                    customApiPath = settings.customApiPath || '';
+                    useAigirlApi = settings.useAigirlApi || false;
+
+                    // 恢复UI状态
+                    if (selectedModel) {
+                        modelSelect.value = selectedModel;
+                        const selectedOption = modelSelect.options[modelSelect.selectedIndex];
+                        if (selectedOption) {
+                            modelDescription.textContent = selectedOption.dataset.description || '';
+                            if (selectedOption.dataset.requiresApiKey === 'false') {
+                                customApiSection.style.display = 'block';
+                            }
+                        }
+                        updateCurrentModelDisplay(selectedModel);
+                    }
+
+                    if (customApiPath) {
+                        customApiPathInput.value = customApiPath;
+                    }
+
+                    useAigirlApiCheckbox.checked = useAigirlApi;
+                } catch (e) {
+                    console.error('加载模型设置失败:', e);
+                }
+            }
+        }
+
+        // 初始化模型控制
+        function initModelControl() {
+            // 加载模型列表
+            loadModels();
+
+            // 加载保存的设置
+            loadModelSettings();
+
+            // 模型控制按钮点击事件
+            modelControlBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                modelPanel.classList.toggle('active');
+            });
+
+            // 点击其他地方关闭面板
+            document.addEventListener('click', (e) => {
+                if (!modelPanel.contains(e.target) && !modelControlBtn.contains(e.target)) {
+                    modelPanel.classList.remove('active');
+                }
+            });
+
+            // 自定义API路径输入
+            customApiPathInput.addEventListener('input', (e) => {
+                customApiPath = e.target.value;
+                saveModelSettings();
+            });
+
+            // AIGirl API切换
+            useAigirlApiCheckbox.addEventListener('change', (e) => {
+                useAigirlApi = e.target.checked;
+                saveModelSettings();
+                console.log('AIGirl兼容API:', useAigirlApi ? '已启用' : '已禁用');
+            });
+
+            // 测试API按钮
+            testApiBtn.addEventListener('click', async () => {
+                await testApiConnection();
+            });
+        }
+
+        // 测试API连接
+        async function testApiConnection() {
+            testResult.textContent = '测试中...';
+            testResult.style.color = '#999';
+
+            try {
+                // 准备测试请求
+                const testRequest = {
+                    userId: currentUserId,
+                    expertId: currentGirlfriendId || '101',
+                    mes: '你好，这是一条测试消息',
+                    source: '0'
+                };
+
+                // 添加模型参数（如果有）
+                if (selectedModel) {
+                    testRequest.modelName = selectedModel;
+                    if (customApiPath) {
+                        testRequest.apiPath = customApiPath;
+                    }
+                }
+
+                // 发送测试请求
+                const response = await fetch(`${API_URL}/api/mobile/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(testRequest)
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    if (data.success && data.content) {
+                        testResult.textContent = `✅ 连接成功！回复: ${data.content.substring(0, 50)}...`;
+                        testResult.style.color = '#4caf50';
+                    } else {
+                        testResult.textContent = `❌ 测试失败: ${data.error || '未知错误'}`;
+                        testResult.style.color = '#f44336';
+                    }
+                } else {
+                    testResult.textContent = `❌ HTTP错误: ${response.status}`;
+                    testResult.style.color = '#f44336';
+                }
+            } catch (error) {
+                testResult.textContent = `❌ 连接失败: ${error.message}`;
+                testResult.style.color = '#f44336';
+                console.error('API测试失败:', error);
+            }
+        }
+
+        // 渲染群组列表
+        function renderGroupList() {
+            const groupList = document.getElementById('groupList');
+            if (!groupList) return;
+
+            groupList.innerHTML = '';
+
+            if (groups.length === 0) {
+                groupList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">暂无群组<br>点击下方按钮创建</div>';
+                return;
+            }
+
+            groups.forEach(group => {
+                const item = document.createElement('div');
+                item.className = 'group-item';
+                item.dataset.groupId = group.group_id;
+
+                item.innerHTML = `
+                    <div class="group-avatar">👥</div>
+                    <div class="group-info" style="flex: 1;">
+                        <div class="group-name">${group.group_name}</div>
+                        <div class="group-members">${group.members.length} 个成员</div>
+                    </div>
+                `;
+
+                // 点击选择群组
+                item.addEventListener('click', () => {
+                    selectGroup(group);
+                });
+
+                if (currentGroupId === group.group_id) {
+                    item.classList.add('active');
+                }
+
+                groupList.appendChild(item);
+            });
+        }
+
+        // 删除群组
+        async function deleteGroup(groupId, groupName) {
+            if (!confirm(`确定要删除群组"${groupName}"吗？\n\n删除后无法恢复！`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/groups/${groupId}?user_id=${currentUserId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    alert('群组已删除');
+
+                    // 如果删除的是当前选中的群组，清空聊天区域
+                    if (currentGroupId === groupId) {
+                        currentGroupId = null;
+                        currentGroupName = '';
+                        isGroupChat = false;
+                        messagesContainer.innerHTML = `
+                            <div class="welcome-message">
+                                <div class="emoji">👥</div>
+                                <h2>欢迎来到AI女友群聊系统</h2>
+                                <p>选择一个群组开始聊天吧～</p>
+                            </div>
+                        `;
+                        messageCount = 0;
+                        updateMessageCount();
+                    }
+
+                    // 重新加载群组列表
+                    await loadGroups();
+                } else {
+                    const error = await response.json();
+                    alert(`删除失败: ${error.detail || '未知错误'}`);
+                }
+            } catch (error) {
+                console.error('删除群组失败:', error);
+                alert('删除群组失败，请检查网络连接');
+            }
+        }
+
+        // 加载女友列表
+        async function loadGirlfriends() {
+            try {
+                const response = await fetch(`${API_URL}/girlfriends?user_id=${currentUserId}`);
+                if (response.ok) {
+                    girlfriends = await response.json();
+                    renderGirlfriendList();
+                }
+            } catch (error) {
+                console.error('加载女友列表失败:', error);
+                setStatus('disconnected', '连接失败');
+            }
+        }
+
+        // 渲染女友列表
+        function renderGirlfriendList() {
+            girlfriendList.innerHTML = '';
+
+            // 系统女友
+            const systemGfs = girlfriends.filter(gf => gf.is_system);
+            // 自定义女友
+            const customGfs = girlfriends.filter(gf => !gf.is_system);
+
+            if (systemGfs.length > 0) {
+                const divider = document.createElement('div');
+                divider.style.cssText = 'padding: 10px 20px; font-size: 12px; color: #999; background: #fafafa;';
+                divider.textContent = '系统女友';
+                girlfriendList.appendChild(divider);
+
+                systemGfs.forEach(gf => {
+                    girlfriendList.appendChild(createGirlfriendItem(gf, 'system'));
+                });
+            }
+
+            if (customGfs.length > 0) {
+                const divider = document.createElement('div');
+                divider.style.cssText = 'padding: 10px 20px; font-size: 12px; color: #999; background: #fafafa;';
+                divider.textContent = '自定义女友';
+                girlfriendList.appendChild(divider);
+
+                customGfs.forEach(gf => {
+                    girlfriendList.appendChild(createGirlfriendItem(gf, 'custom'));
+                });
+            }
+        }
+
+        // 创建女友列表项
+        function createGirlfriendItem(gf, type) {
+            const item = document.createElement('div');
+            item.className = `girlfriend-item ${type}`;
+            item.dataset.girlfriendId = gf.girlfriend_id;
+
+            const name = gf.name;
+            const firstChar = name.charAt(0);
+
+            item.innerHTML = `
+                <div class="girlfriend-avatar">${firstChar}</div>
+                <div class="girlfriend-info">
+                    <div class="girlfriend-name">${name}</div>
+                </div>
+            `;
+
+            item.addEventListener('click', () => selectGirlfriend(gf));
+
+            if (currentGirlfriendId === gf.girlfriend_id) {
+                item.classList.add('active');
+            }
+
+            return item;
+        }
+
+        // 选择女友
+        async function selectGirlfriend(gf) {
+            // 退出群聊模式
+            isGroupChat = false;
+            currentGroupId = null;
+
+            // 保存当前女友的会话信息（如果有）
+            if (currentGirlfriendId && currentSessionId) {
+                if (!girlfriendChats[currentGirlfriendId]) {
+                    girlfriendChats[currentGirlfriendId] = {};
+                }
+                girlfriendChats[currentGirlfriendId].sessionId = currentSessionId;
+                // 消息已经在DOM中，不需要额外保存
+            }
+
+            // 切换到新女友
+            currentGirlfriendId = gf.girlfriend_id;
+            currentGirlfriendName = gf.name;
+            messageCount = 0;
+
+            // 更新UI
+            document.querySelectorAll('.girlfriend-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.girlfriendId === gf.girlfriend_id) {
+                    item.classList.add('active');
+                }
+            });
+            document.querySelectorAll('.group-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            // 更新聊天头部
+            chatName.textContent = gf.name;
+            chatStatus.textContent = '在线';
+            chatAvatar.textContent = gf.name.charAt(0);
+
+            // 显示清空记录按钮，隐藏群组设置菜单
+            document.getElementById('clearHistoryBtn').style.display = 'block';
+            document.getElementById('groupSettingsDropdown').style.display = 'none';
+
+            // 清空消息区域
+            messagesContainer.innerHTML = '';
+
+            // 从PostgreSQL加载历史记录（持久化，刷新页面后恢复）
+            try {
+                const history = await loadHistoryFromBackend(currentUserId, gf.girlfriend_id);
+
+                if (history.length > 0) {
+                    // 显示历史消息
+                    history.forEach(msg => {
+                        const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString('zh-CN', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        }) : formatTime(new Date());
+                        restoreMessage(msg.role, msg.content, time);
+                    });
+                    messageCount = history.length;
+                    console.log(`✅ 恢复了 ${history.length} 条历史记录`);
+                } else {
+                    // 无历史记录，显示欢迎消息
+                    addMessage('assistant', `你好！我是${gf.name}，很高兴认识你！有什么想聊的吗？`);
+                    messageCount = 0;
+                }
+            } catch (error) {
+                console.error('加载历史记录失败:', error);
+                // 加载失败时显示欢迎消息
+                addMessage('assistant', `你好！我是${gf.name}，很高兴认识你！有什么想聊的吗？`);
+                messageCount = 0;
+            }
+
+            // 更新状态
+            updateMessageCount();
+            messageInput.focus();
+
+            // 滚动到底部
+            setTimeout(() => scrollToBottom(true), 100);
+        }
+
+        // 从后端加载历史记录（使用user_id和expertId）
+        async function loadHistoryFromBackend(user_id, expert_id) {
+            try {
+                const response = await fetch(`${API_URL}/history?user_id=${user_id}&expertId=${expert_id}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.history || [];
+                } else {
+                    console.warn('获取历史记录失败:', response.status);
+                    return [];
+                }
+            } catch (error) {
+                console.error('加载历史记录出错:', error);
+                return [];
+            }
+        }
+
+        // 恢复消息到界面（不更新时间戳）
+        function restoreMessage(role, content, time) {
+            const message = document.createElement('div');
+            message.className = `message ${role}`;
+
+            // 为AI消息生成唯一ID并存储元数据
+            if (role === 'assistant') {
+                message.dataset.msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                message.dataset.role = role;
+                message.dataset.content = content;
+                message.dataset.girlfriendId = currentGirlfriendId;
+                message.dataset.userId = currentUserId;
+            }
+
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = role === 'user' ? currentUserId.charAt(0).toUpperCase() : currentGirlfriendName.charAt(0);
+
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            bubble.textContent = content;
+
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'message-time';
+            timeDiv.textContent = time;
+
+            messageContent.appendChild(bubble);
+            messageContent.appendChild(timeDiv);
+
+            // 为AI消息添加操作按钮
+            if (role === 'assistant') {
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'message-actions';
+                actionsDiv.innerHTML = `
+                    <button class="btn-edit" onclick="editPrivateMessage('${message.dataset.msgId}')" title="编辑">✏️ 编辑</button>
+                    <button class="btn-regenerate" onclick="regeneratePrivateMessage('${message.dataset.msgId}')" title="重新生成">🔄 重新生成</button>
+                `;
+                messageContent.appendChild(actionsDiv);
+            }
+
+            message.appendChild(avatar);
+            message.appendChild(messageContent);
+
+            messagesContainer.appendChild(message);
+        }
+
+        // 滚动到底部
+        function scrollToBottom(smooth = true) {
+            if (smooth) {
+                messagesContainer.scrollTo({
+                    top: messagesContainer.scrollHeight,
+                    behavior: 'smooth'
+                });
+            } else {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+        }
+
+        // 添加消息
+        function addMessage(role, content) {
+            const message = document.createElement('div');
+            message.className = `message ${role}`;
+
+            // 为AI消息生成唯一ID并存储元数据
+            if (role === 'assistant') {
+                message.dataset.msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                message.dataset.role = role;
+                message.dataset.content = content;
+                message.dataset.girlfriendId = currentGirlfriendId;
+                message.dataset.userId = currentUserId;
+            }
+
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = role === 'user' ? currentUserId.charAt(0).toUpperCase() : currentGirlfriendName.charAt(0);
+
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            bubble.textContent = content;
+
+            const time = document.createElement('div');
+            time.className = 'message-time';
+            const currentTime = formatTime(new Date());
+            time.textContent = currentTime;
+
+            messageContent.appendChild(bubble);
+            messageContent.appendChild(time);
+
+            // 为AI消息添加操作按钮
+            if (role === 'assistant') {
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'message-actions';
+                actionsDiv.innerHTML = `
+                    <button class="btn-edit" onclick="editPrivateMessage('${message.dataset.msgId}')" title="编辑">✏️ 编辑</button>
+                    <button class="btn-regenerate" onclick="regeneratePrivateMessage('${message.dataset.msgId}')" title="重新生成">🔄 重新生成</button>
+                `;
+                messageContent.appendChild(actionsDiv);
+            }
+
+            message.appendChild(avatar);
+            message.appendChild(messageContent);
+
+            messagesContainer.appendChild(message);
+            scrollToBottom(false);  // 立即滚动到底部
+
+            // 保存消息到聊天记录
+            if (currentGirlfriendId) {
+                if (!girlfriendChats[currentGirlfriendId]) {
+                    girlfriendChats[currentGirlfriendId] = { messages: [] };
+                }
+                if (!girlfriendChats[currentGirlfriendId].messages) {
+                    girlfriendChats[currentGirlfriendId].messages = [];
+                }
+                girlfriendChats[currentGirlfriendId].messages.push({
+                    role: role,
+                    content: content,
+                    time: currentTime,
+                    msgId: message.dataset.msgId
+                });
+            }
+
+            messageCount++;
+            updateMessageCount();
+        }
+
+        // 格式化时间
+        function formatTime(date) {
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${hours}:${minutes}`;
+        }
+
+        // 更新消息计数
+        function updateMessageCount() {
+            messageCountEl.textContent = `${messageCount} 条消息`;
+        }
+
+        // 设置状态
+        function setStatus(status, text) {
+            statusDot.className = 'status-dot ' + status;
+            statusText.textContent = text;
+        }
+
+        // ========== 编辑/重新生成功能 ==========
+
+        // 显示Toast提示
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+        }
+
+        // 关闭所有编辑对话框
+        function closeAllEditDialogs() {
+            document.querySelectorAll('.edit-overlay').forEach(el => el.remove());
+        }
+
+        // ========== 私聊编辑功能 ==========
+
+        // 编辑私聊消息
+        function editPrivateMessage(msgId) {
+            const message = document.querySelector(`[data-msg-id="${msgId}"]`);
+            if (!message) return;
+
+            closeAllEditDialogs();
+
+            const content = message.dataset.content;
+            const girlfriendId = message.dataset.girlfriendId;
+            const girlfriend = girlfriends.find(g => g.id === girlfriendId);
+            const girlfriendName = girlfriend ? girlfriend.name : 'AI助手';
+
+            // 创建编辑对话框
+            const editOverlay = document.createElement('div');
+            editOverlay.className = 'edit-overlay';
+            editOverlay.innerHTML = `
+                <div class="edit-dialog">
+                    <h3>编辑 ${girlfriendName} 的回复</h3>
+                    <textarea id="editTextarea_${msgId}" rows="4">${content}</textarea>
+                    <div class="edit-buttons">
+                        <button class="btn-dialog-cancel" onclick="closeAllEditDialogs()">✕ 取消</button>
+                        <button class="btn-dialog-confirm" id="saveBtn_${msgId}">✓ 保存</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(editOverlay);
+
+            const textarea = document.getElementById(`editTextarea_${msgId}`);
+            const saveBtn = document.getElementById(`saveBtn_${msgId}`);
+            textarea.focus();
+
+            // 保存按钮点击事件
+            saveBtn.onclick = () => savePrivateEdit(msgId, textarea.value);
+
+            // Enter保存，Esc取消
+            textarea.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    savePrivateEdit(msgId, textarea.value);
+                } else if (e.key === 'Escape') {
+                    closeAllEditDialogs();
+                }
+            });
+
+            // 点击背景关闭
+            editOverlay.addEventListener('click', (e) => {
+                if (e.target === editOverlay) {
+                    closeAllEditDialogs();
+                }
+            });
+        }
+
+        // 保存私聊编辑
+        async function savePrivateEdit(msgId, newContent) {
+            const message = document.querySelector(`[data-msg-id="${msgId}"]`);
+            if (!message) return;
+
+            newContent = newContent.trim();
+            if (!newContent) {
+                showToast('❌ 回复内容不能为空');
+                return;
+            }
+
+            const oldContent = message.dataset.content;
+            const girlfriendId = message.dataset.girlfriendId;
+            const girlfriend = girlfriends.find(g => g.id === girlfriendId);
+            const girlfriendName = girlfriend ? girlfriend.name : 'AI助手';
+
+            // 确认对话框
+            if (!confirm(`确定要保存修改后的回复吗？\n\n原回复：${oldContent.substring(0, 50)}...\n\n新回复：${newContent.substring(0, 50)}...`)) {
+                return;
+            }
+
+            try {
+                // 调用后端API更新历史记录
+                const response = await fetch(`${API_URL}/api/roles/update_history`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: currentUserId,
+                        expertId: girlfriendId,
+                        mes: getLastUserMessage(),
+                        replay: newContent
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    // 更新界面
+                    message.dataset.content = newContent;
+                    message.querySelector('.message-bubble').textContent = newContent;
+                    closeAllEditDialogs();
+                    showToast('✅ 保存成功');
+                } else {
+                    showToast('❌ 保存失败：' + result.msg);
+                }
+            } catch (error) {
+                console.error('保存失败:', error);
+                showToast('❌ 保存失败：' + error.message);
+            }
+        }
+
+        // 重新生成私聊消息
+        async function regeneratePrivateMessage(msgId) {
+            const message = document.querySelector(`[data-msg-id="${msgId}"]`);
+            if (!message) return;
+
+            const girlfriendId = message.dataset.girlfriendId;
+            const girlfriend = girlfriends.find(g => g.id === girlfriendId);
+            const girlfriendName = girlfriend ? girlfriend.name : 'AI助手';
+            const userMessage = getLastUserMessage();
+
+            if (!userMessage) {
+                showToast('❌ 找不到对应的用户消息');
+                return;
+            }
+
+            const btn = message.querySelector('.btn-regenerate');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '⏳ 生成中...';
+            }
+
+            try {
+                showToast(`⏳ 正在重新生成 ${girlfriendName} 的回复...`);
+
+                const response = await fetch(`${API_URL}/api/mobile/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        expertId: girlfriendId,
+                        userId: currentUserId,
+                        mes: userMessage,
+                        retry: true
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success && result.content) {
+                    // 更新界面
+                    message.dataset.content = result.content;
+                    message.querySelector('.message-bubble').textContent = result.content;
+                    showToast('✅ 重新生成成功');
+                } else {
+                    showToast('❌ 生成失败：' + (result.error || '未知错误'));
+                }
+            } catch (error) {
+                console.error('重新生成失败:', error);
+                showToast('❌ 生成失败：' + error.message);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '🔄 重新生成';
+                }
+            }
+        }
+
+        // ========== 群聊编辑功能 ==========
+
+        // 编辑群聊消息
+        function editGroupMessage(msgId) {
+            const message = document.querySelector(`[data-msg-id="${msgId}"]`);
+            if (!message) return;
+
+            closeAllEditDialogs();
+
+            const content = message.dataset.content;
+            const sender = message.dataset.sender;
+
+            // 创建编辑对话框
+            const editOverlay = document.createElement('div');
+            editOverlay.className = 'edit-overlay';
+            editOverlay.innerHTML = `
+                <div class="edit-dialog">
+                    <h3>编辑 ${sender} 的回复</h3>
+                    <textarea id="editTextarea_${msgId}" rows="4">${content}</textarea>
+                    <div class="edit-buttons">
+                        <button class="btn-dialog-cancel" onclick="closeAllEditDialogs()">✕ 取消</button>
+                        <button class="btn-dialog-confirm" id="saveBtn_${msgId}">✓ 保存</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(editOverlay);
+
+            const textarea = document.getElementById(`editTextarea_${msgId}`);
+            const saveBtn = document.getElementById(`saveBtn_${msgId}`);
+            textarea.focus();
+
+            // 保存按钮点击事件
+            saveBtn.onclick = () => saveGroupEdit(msgId, textarea.value);
+
+            // Enter保存，Esc取消
+            textarea.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    saveGroupEdit(msgId, textarea.value);
+                } else if (e.key === 'Escape') {
+                    closeAllEditDialogs();
+                }
+            });
+
+            // 点击背景关闭
+            editOverlay.addEventListener('click', (e) => {
+                if (e.target === editOverlay) {
+                    closeAllEditDialogs();
+                }
+            });
+        }
+
+        // 保存群聊编辑
+        async function saveGroupEdit(msgId, newContent) {
+            const message = document.querySelector(`[data-msg-id="${msgId}"]`);
+            if (!message) return;
+
+            newContent = newContent.trim();
+            if (!newContent) {
+                showToast('❌ 回复内容不能为空');
+                return;
+            }
+
+            const oldContent = message.dataset.content;
+            const sender = message.dataset.sender;
+
+            // 确认对话框
+            if (!confirm(`确定要保存修改后的回复吗？\n\n原回复：${oldContent.substring(0, 50)}...\n\n新回复：${newContent.substring(0, 50)}...`)) {
+                return;
+            }
+
+            try {
+                // 调用后端API更新群聊消息
+                const groupId = message.dataset.groupId;
+                const userId = message.dataset.userId;
+
+                // 通过角色名称查找角色ID
+                const group = groups.find(g => g.id === groupId);
+                if (!group) {
+                    showToast('❌ 找不到群组信息');
+                    return;
+                }
+
+                const member = group.members.find(m => m.name === sender);
+                if (!member) {
+                    showToast('❌ 找不到角色信息');
+                    return;
+                }
+
+                const expertId = member.id;
+
+                // 获取最后一条用户消息
+                const userMessage = getLastGroupUserMessage();
+
+                const response = await fetch(`${API_URL}/groups/${groupId}/update_message`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        group_id: groupId,
+                        user_id: userId,
+                        expert_id: expertId,
+                        user_message: userMessage,
+                        new_reply: newContent
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    // 更新界面
+                    message.dataset.content = newContent;
+                    message.querySelector('.message-bubble').textContent = newContent;
+                    closeAllEditDialogs();
+                    showToast('✅ 保存成功');
+                } else {
+                    showToast('❌ 保存失败：' + result.msg);
+                }
+            } catch (error) {
+                console.error('保存失败:', error);
+                // 如果后端API不可用，回退到仅前端更新
+                message.dataset.content = newContent;
+                message.querySelector('.message-bubble').textContent = newContent;
+                closeAllEditDialogs();
+                showToast('✅ 保存成功（仅前端显示）');
+            }
+        }
+
+        // 获取群聊中最后一条用户消息
+        function getLastGroupUserMessage() {
+            const messages = messagesContainer.querySelectorAll('.message.user');
+            if (messages.length > 0) {
+                const lastUserMsg = messages[messages.length - 1];
+                const bubble = lastUserMsg.querySelector('.message-bubble');
+                return bubble ? bubble.textContent : '';
+            }
+            return '';
+        }
+
+        // 重新生成群聊消息
+        async function regenerateGroupMessage(msgId) {
+            const message = document.querySelector(`[data-msg-id="${msgId}"]`);
+            if (!message) return;
+
+            const sender = message.dataset.sender;
+            const groupId = message.dataset.groupId;
+            const btn = message.querySelector('.btn-regenerate');
+
+            if (!currentGroupId) {
+                showToast('❌ 未找到群组信息');
+                return;
+            }
+
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '⏳ 生成中...';
+            }
+
+            try {
+                showToast(`⏳ 正在重新生成 ${sender} 的回复...`);
+
+                // 获取群组信息
+                const group = groups.find(g => g.id === currentGroupId);
+                if (!group) {
+                    showToast('❌ 找不到群组信息');
+                    return;
+                }
+
+                // 找到对应的角色ID
+                const member = group.members.find(m => m.name === sender);
+                if (!member) {
+                    showToast('❌ 找不到角色信息');
+                    return;
+                }
+
+                // 获取最后一条用户消息
+                const lastUserMsg = getLastGroupUserMessage();
+                if (!lastUserMsg) {
+                    showToast('❌ 找不到用户消息');
+                    return;
+                }
+
+                // 临时移除该角色的旧回复，重新调用群聊API
+                message.style.opacity = '0.5';
+
+                // 构建请求数据
+                const requestData = {
+                    user_id: currentUserId,
+                    message: lastUserMsg,
+                    mentioned_girlfriends: [member.id],  // 只@该角色，让它重新回复
+                    stream: false  // 使用非流式响应
+                };
+
+                const response = await fetch(`${API_URL}/groups/${currentGroupId}/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestData)
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // 查找该角色的新回复
+                    if (data.ai_responses && data.ai_responses.length > 0) {
+                        const newReply = data.ai_responses.find(r => r.girlfriend_name === sender);
+                        if (newReply) {
+                            // 更新界面
+                            message.dataset.content = newReply.response;
+                            message.querySelector('.message-bubble').textContent = newReply.response;
+                            message.style.opacity = '1';
+                            showToast('✅ 重新生成成功');
+                        } else {
+                            showToast('❌ 未找到该角色的回复');
+                            message.style.opacity = '1';
+                        }
+                    } else {
+                        showToast('❌ 生成失败：无回复内容');
+                        message.style.opacity = '1';
+                    }
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                console.error('重新生成失败:', error);
+                showToast('❌ 生成失败：' + error.message);
+                message.style.opacity = '1';
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '🔄 重新生成';
+                }
+            }
+        }
+
+        // 获取最后一条用户消息
+        function getLastUserMessage() {
+            const messages = messagesContainer.querySelectorAll('.message.user');
+            if (messages.length > 0) {
+                const lastUserMsg = messages[messages.length - 1];
+                const bubble = lastUserMsg.querySelector('.message-bubble');
+                return bubble ? bubble.textContent : '';
+            }
+            return '';
+        }
+
+        // 检查连接
+        async function checkConnection() {
+            try {
+                const response = await fetch(`${API_URL}/`);
+                if (response.ok) {
+                    setStatus('connected', '已连接');
+                } else {
+                    setStatus('disconnected', '服务未响应');
+                }
+            } catch (error) {
+                setStatus('disconnected', '无法连接');
+            }
+        }
+
+        // 切换用户
+        switchUserBtn.addEventListener('click', async () => {
+            const newUserId = userIdInput.value.trim();
+            if (newUserId && newUserId !== currentUserId) {
+                currentUserId = newUserId;
+                currentGirlfriendId = null;
+                currentSessionId = null;
+                messageCount = 0;
+
+                // 重新加载女友列表（包含该用户的自定义女友）
+                await loadGirlfriends();
+
+                // 重置UI
+                document.querySelectorAll('.girlfriend-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                chatName.textContent = '请选择女友';
+                chatStatus.textContent = '选择左侧女友开始聊天';
+                chatAvatar.textContent = '?';
+                messagesContainer.innerHTML = `
+                    <div class="welcome-message">
+                        <div class="emoji">🌸</div>
+                        <h2>欢迎来到AI女友聊天系统</h2>
+                        <p>当前用户：${currentUserId}</p>
+                        <p>从左侧选择一个女友开始聊天吧～</p>
+                    </div>
+                `;
+                updateMessageCount();
+
+                alert(`已切换到用户：${newUserId}`);
+            }
+        });
+
+        // 发送按钮
+        sendBtn.addEventListener('click', sendMessage);
+
+        // 回车发送（Shift+Enter换行）
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // 自动调整输入框高度
+        messageInput.addEventListener('input', () => {
+            messageInput.style.height = 'auto';
+            messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
+        });
+
+        // 清空历史
+        clearHistoryBtn.addEventListener('click', () => {
+            if (confirm('确定要清空当前聊天记录吗？')) {
+                currentSessionId = null;
+                messageCount = 0;
+                messagesContainer.innerHTML = '';
+
+                // 清空保存的聊天记录
+                if (currentGirlfriendId) {
+                    girlfriendChats[currentGirlfriendId] = {};
+                }
+
+                if (currentGirlfriendName) {
+                    addMessage('assistant', `聊天记录已清空。我是${currentGirlfriendName}，我们重新开始吧！`);
+                }
+                updateMessageCount();
+            }
+        });
+
+        // 创建女友模态框
+        const createModal = document.getElementById('createModal');
+        const createGirlfriendBtn = document.getElementById('createGirlfriendBtn');
+        const closeCreateModal = document.getElementById('closeCreateModal');
+        const cancelCreateBtn = document.getElementById('cancelCreateBtn');
+        const confirmCreateBtn = document.getElementById('confirmCreateBtn');
+        const newGfName = document.getElementById('newGfName');
+        const newGfPrompt = document.getElementById('newGfPrompt');
+
+        createGirlfriendBtn.addEventListener('click', () => {
+            createModal.classList.add('active');
+        });
+
+        closeCreateModal.addEventListener('click', () => {
+            createModal.classList.remove('active');
+        });
+
+        cancelCreateBtn.addEventListener('click', () => {
+            createModal.classList.remove('active');
+        });
+
+        confirmCreateBtn.addEventListener('click', async () => {
+            const name = newGfName.value.trim();
+            const prompt = newGfPrompt.value.trim();
+
+            if (!name || !prompt) {
+                alert('请填写完整信息');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/girlfriends`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: name,
+                        sys_prompt: prompt,
+                        user_id: currentUserId
+                    })
+                });
+
+                if (response.ok) {
+                    newGfName.value = '';
+                    newGfPrompt.value = '';
+                    createModal.classList.remove('active');
+                    await loadGirlfriends();
+                    alert('女友创建成功！');
+                } else {
+                    alert('创建失败');
+                }
+            } catch (error) {
+                console.error('创建女友失败:', error);
+                alert('创建失败');
+            }
+        });
+
+        // 点击模态框外部关闭
+        createModal.addEventListener('click', (e) => {
+            if (e.target === createModal) {
+                createModal.classList.remove('active');
+            }
+        });
+
+        // ============= 群聊相关功能 =============
+
+        // 标签切换
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tab = btn.dataset.tab;
+
+                // 更新按钮状态
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                // 更新内容显示
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                document.getElementById(`${tab}Tab`).classList.add('active');
+            });
+        });
+
+        // 选择群组
+        async function selectGroup(group) {
+            // 保存当前会话信息
+            if (currentGirlfriendId && currentSessionId) {
+                if (!girlfriendChats[currentGirlfriendId]) {
+                    girlfriendChats[currentGirlfriendId] = {};
+                }
+                girlfriendChats[currentGirlfriendId].sessionId = currentSessionId;
+            }
+
+            // 切换到群聊模式
+            isGroupChat = true;
+            currentGroupId = group.group_id;
+            currentGroupName = group.group_name;
+            currentGirlfriendId = null;
+            currentSessionId = null;
+
+            // 更新UI
+            document.querySelectorAll('.group-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.groupId === group.group_id) {
+                    item.classList.add('active');
+                }
+            });
+            document.querySelectorAll('.girlfriend-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            // 更新聊天头部
+            chatName.textContent = `👥 ${group.group_name}`;
+            chatStatus.textContent = `${group.members.length} 个成员`;
+            chatAvatar.textContent = '👥';
+
+            // 显示群组设置菜单，隐藏清空记录按钮
+            document.getElementById('groupSettingsDropdown').style.display = 'block';
+            document.getElementById('clearHistoryBtn').style.display = 'none';
+
+            // 清空消息区域
+            messagesContainer.innerHTML = '';
+
+            // 加载群组历史
+            await loadGroupHistory(group.group_id);
+        }
+
+        // 加载群组历史
+        async function loadGroupHistory(groupId) {
+            try {
+                const response = await fetch(`${API_URL}/groups/${groupId}/history?limit=50`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.messages && data.messages.length > 0) {
+                        data.messages.forEach(msg => {
+                            const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString('zh-CN', {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            }) : formatTime(new Date());
+                            restoreGroupMessage(msg.role, msg.sender_name, msg.content, time);
+                        });
+                        messageCount = data.messages.length;
+                    } else {
+                        addGroupMessage('assistant', '系统', '欢迎来到群聊！发送消息开始聊天吧～');
+                    }
+                } else {
+                    addGroupMessage('assistant', '系统', '欢迎来到群聊！发送消息开始聊天吧～');
+                }
+                updateMessageCount();
+
+                // 滚动到底部
+                setTimeout(() => scrollToBottom(true), 100);
+            } catch (error) {
+                console.error('加载群组历史失败:', error);
+                addGroupMessage('assistant', '系统', '欢迎来到群聊！发送消息开始聊天吧～');
+                updateMessageCount();
+
+                // 滚动到底部
+                setTimeout(() => scrollToBottom(true), 100);
+            }
+        }
+
+        // 恢复群组消息到界面
+        function restoreGroupMessage(role, senderName, content, time) {
+            const message = document.createElement('div');
+            message.className = `message ${role}`;
+
+            // 为AI消息生成唯一ID并存储元数据
+            if (role === 'assistant' && senderName !== '系统') {
+                message.dataset.msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                message.dataset.role = role;
+                message.dataset.sender = senderName;
+                message.dataset.content = content;
+                message.dataset.groupId = currentGroupId;
+                message.dataset.userId = currentUserId;
+            }
+
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = senderName.charAt(0);
+            avatar.title = senderName;
+
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            bubble.textContent = content;  // 去掉前缀，只显示内容
+
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'message-time';
+            timeDiv.textContent = time;
+
+            messageContent.appendChild(bubble);
+            messageContent.appendChild(timeDiv);
+
+            // 为AI消息（非系统）添加操作按钮
+            if (role === 'assistant' && senderName !== '系统') {
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'message-actions';
+                actionsDiv.innerHTML = `
+                    <button class="btn-edit" onclick="editGroupMessage('${message.dataset.msgId}')" title="编辑">✏️ 编辑</button>
+                    <button class="btn-regenerate" onclick="regenerateGroupMessage('${message.dataset.msgId}')" title="重新生成">🔄 重新生成</button>
+                `;
+                messageContent.appendChild(actionsDiv);
+            }
+
+            message.appendChild(avatar);
+            message.appendChild(messageContent);
+
+            messagesContainer.appendChild(message);
+        }
+
+        // 添加群组消息
+        function addGroupMessage(role, senderName, content) {
+            const message = document.createElement('div');
+            message.className = `message ${role}`;
+
+            // 为AI消息生成唯一ID并存储元数据
+            if (role === 'assistant' && senderName !== '系统') {
+                message.dataset.msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                message.dataset.role = role;
+                message.dataset.sender = senderName;
+                message.dataset.content = content;
+                message.dataset.groupId = currentGroupId;
+                message.dataset.userId = currentUserId;
+            }
+
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = senderName.charAt(0);
+            avatar.title = senderName;
+
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            bubble.textContent = content;  // 去掉前缀，只显示内容
+
+            const time = document.createElement('div');
+            time.className = 'message-time';
+            const currentTime = formatTime(new Date());
+            time.textContent = currentTime;
+
+            messageContent.appendChild(bubble);
+            messageContent.appendChild(time);
+
+            // 为AI消息（非系统）添加操作按钮
+            if (role === 'assistant' && senderName !== '系统') {
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'message-actions';
+                actionsDiv.innerHTML = `
+                    <button class="btn-edit" onclick="editGroupMessage('${message.dataset.msgId}')" title="编辑">✏️ 编辑</button>
+                    <button class="btn-regenerate" onclick="regenerateGroupMessage('${message.dataset.msgId}')" title="重新生成">🔄 重新生成</button>
+                `;
+                messageContent.appendChild(actionsDiv);
+            }
+
+            message.appendChild(avatar);
+            message.appendChild(messageContent);
+
+            messagesContainer.appendChild(message);
+            scrollToBottom(false);  // 立即滚动到底部
+
+            messageCount++;
+            updateMessageCount();
+        }
+
+        // 创建群组按钮
+        const createGroupBtn = document.getElementById('createGroupBtn');
+        const createGroupModal = document.getElementById('createGroupModal');
+        const closeCreateGroupModal = document.getElementById('closeCreateGroupModal');
+        const cancelCreateGroupBtn = document.getElementById('cancelCreateGroupBtn');
+        const confirmCreateGroupBtn = document.getElementById('confirmCreateGroupBtn');
+        const newGroupName = document.getElementById('newGroupName');
+        const memberSelectList = document.getElementById('memberSelectList');
+
+        createGroupBtn.addEventListener('click', async () => {
+            // 加载女友列表到选择器
+            memberSelectList.innerHTML = '';
+            girlfriends.forEach(gf => {
+                const label = document.createElement('label');
+                label.style.cssText = 'display: block; padding: 8px; cursor: pointer; border-bottom: 1px solid #f0f0f0;';
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = gf.girlfriend_id;
+                checkbox.style.cssText = 'margin-right: 8px;';
+
+                label.appendChild(checkbox);
+                label.appendChild(document.createTextNode(gf.name));
+                memberSelectList.appendChild(label);
+            });
+
+            createGroupModal.classList.add('active');
+        });
+
+        closeCreateGroupModal.addEventListener('click', () => {
+            createGroupModal.classList.remove('active');
+        });
+
+        cancelCreateGroupBtn.addEventListener('click', () => {
+            createGroupModal.classList.remove('active');
+        });
+
+        confirmCreateGroupBtn.addEventListener('click', async () => {
+            const name = newGroupName.value.trim();
+            const selectedMembers = Array.from(memberSelectList.querySelectorAll('input:checked'))
+                                        .map(cb => cb.value);
+
+            if (!name) {
+                alert('请输入群组名称');
+                return;
+            }
+
+            if (selectedMembers.length === 0) {
+                alert('请至少选择一个成员');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/groups`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: name,
+                        members: selectedMembers,
+                        user_id: currentUserId
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    newGroupName.value = '';
+                    createGroupModal.classList.remove('active');
+                    await loadGroups();
+                    alert('群组创建成功！');
+                } else {
+                    alert('创建群组失败');
+                }
+            } catch (error) {
+                console.error('创建群组失败:', error);
+                alert('创建群组失败');
+            }
+        });
+
+        // 点击模态框外部关闭
+        createGroupModal.addEventListener('click', (e) => {
+            if (e.target === createGroupModal) {
+                createGroupModal.classList.remove('active');
+            }
+        });
+
+        // 修改发送消息函数以支持群聊
+        async function sendMessage() {
+            const content = messageInput.value.trim();
+            if (!content) {
+                return;
+            }
+
+            if (isGroupChat && currentGroupId) {
+                // 群聊消息
+                await sendGroupMessage(content);
+            } else if (currentGirlfriendId) {
+                // 单聊消息
+                await sendDirectMessage(content);
+            } else {
+                alert('请先选择女友或群组');
+                return;
+            }
+
+            messageInput.value = '';
+            messageInput.style.height = 'auto';
+        }
+
+        // 发送群聊消息
+        async function sendGroupMessage(content) {
+            // 立即显示用户消息（包含艾特信息）
+            const time = formatTime(new Date());
+
+            // 构建显示的消息内容（包含艾特）
+            const mentionedNames = mentionedGirlfriends.map(g => g.name);
+            const displayContent = mentionedNames.length > 0
+                ? `${mentionedNames.map(n => `@${n}`).join(' ')} ${content}`
+                : content;
+
+            restoreGroupMessage('user', '用户', displayContent, time);
+
+            messageInput.value = '';
+            messageInput.style.height = 'auto';
+
+            // 清空艾特状态
+            mentionedGirlfriends = [];
+            updateMentionedTags();
+
+            // 清空输入框并允许继续输入
+            messageCount++;
+            updateMessageCount();
+            messageInput.disabled = false;
+            sendBtn.disabled = false;
+            messageInput.focus();
+
+            try {
+                setStatus('loading', 'AI正在回复...');
+
+                const response = await fetch(`${API_URL}/groups/${currentGroupId}/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        group_id: currentGroupId,
+                        message: content,  // 发送原始消息（不含@）
+                        user_id: currentUserId,
+                        mentioned_girlfriends: mentionedGirlfriends.map(g => g.girlfriend_id)  // 单独发送艾特列表
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // 显示 AI 回应 - 使用更自然的延迟
+                    if (data.ai_responses && data.ai_responses.length > 0) {
+                        // 随机延迟范围：1-3秒，模拟真实聊天
+                        const displayResponses = async () => {
+                            for (let i = 0; i < data.ai_responses.length; i++) {
+                                const resp = data.ai_responses[i];
+                                // 第一个回复1秒后显示，后续每个回复随机延迟1.5-3秒
+                                const delay = i === 0 ? 1000 : 1500 + Math.random() * 1500;
+                                await new Promise(resolve => setTimeout(resolve, delay));
+                                addGroupMessage('assistant', resp.girlfriend_name, resp.response);
+                            }
+                            setStatus('connected', '已连接');
+                        };
+
+                        // 异步显示回复，不阻塞用户输入
+                        displayResponses();
+                    } else {
+                        setStatus('connected', '已连接');
+                    }
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                console.error('发送群聊消息失败:', error);
+                addGroupMessage('assistant', '系统', '发送失败: ' + error.message);
+                setStatus('disconnected', '连接失败');
+            }
+        }
+
+        // 发送单聊消息（原有逻辑）
+        async function sendDirectMessage(content) {
+            messageInput.disabled = true;
+            sendBtn.disabled = true;
+            typingIndicator.classList.add('active');
+
+            addMessage('user', content);
+
+            try {
+                setStatus('loading', '正在发送...');
+
+                let response, data;
+
+                // 根据设置选择API端点
+                if (useAigirlApi) {
+                    // 使用AIGirl兼容API
+                    const requestBody = {
+                        userId: currentUserId,
+                        expertId: currentGirlfriendId,
+                        mes: content,
+                        source: "0"
+                    };
+
+                    // 添加模型参数
+                    if (selectedModel) {
+                        requestBody.modelName = selectedModel;
+                        if (customApiPath) {
+                            requestBody.apiPath = customApiPath;
+                        }
+                    }
+
+                    response = await fetch(`${API_URL}/api/mobile/chat`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(requestBody)
+                    });
+
+                    if (response.ok) {
+                        data = await response.json();
+
+                        if (data.success) {
+                            addMessage('assistant', data.content);
+                            setStatus('connected', '已连接');
+                        } else {
+                            throw new Error(data.error || '未知错误');
+                        }
+                    } else {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                } else {
+                    // 使用原有API
+                    response = await fetch(`${API_URL}/chat`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            messages: [{ role: 'user', content: content }],
+                            userId: currentUserId,
+                            expertId: currentGirlfriendId,
+                            session_id: currentSessionId
+                        })
+                    });
+
+                    if (response.ok) {
+                        data = await response.json();
+
+                        if (data.session_id) {
+                            currentSessionId = data.session_id;
+                            saveSessionState(currentGirlfriendId, currentSessionId);
+                            if (!girlfriendChats[currentGirlfriendId]) {
+                                girlfriendChats[currentGirlfriendId] = {};
+                            }
+                            girlfriendChats[currentGirlfriendId].sessionId = currentSessionId;
+                        }
+
+                        addMessage('assistant', data.reply);
+                        setStatus('connected', '已连接');
+                    } else {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                }
+            } catch (error) {
+                console.error('发送消息失败:', error);
+                console.error('错误详情:', JSON.stringify(error, null, 2));
+
+                // 显示更友好的错误信息
+                let errorText = '抱歉，发送失败了';
+                if (error.message) {
+                    errorText += '：' + error.message;
+                } else {
+                    errorText += '，请查看控制台了解详情';
+                }
+                addMessage('assistant', errorText);
+                setStatus('disconnected', '连接失败');
+            } finally {
+                messageInput.disabled = false;
+                sendBtn.disabled = false;
+                typingIndicator.classList.remove('active');
+                messageInput.focus();
+            }
+        }
+
+        // ============= 群组设置菜单功能 =============
+
+        // 设置菜单按钮点击事件
+        const groupSettingsBtn = document.getElementById('groupSettingsBtn');
+        const groupSettingsMenu = document.getElementById('groupSettingsMenu');
+
+        groupSettingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            groupSettingsMenu.classList.toggle('show');
+        });
+
+        // 点击其他地方关闭菜单
+        document.addEventListener('click', () => {
+            groupSettingsMenu.classList.remove('show');
+        });
+
+        // 下拉菜单项点击事件
+        groupSettingsMenu.addEventListener('click', async (e) => {
+            const item = e.target.closest('.dropdown-item');
+            if (!item) return;
+
+            const action = item.dataset.action;
+            groupSettingsMenu.classList.remove('show');
+
+            switch (action) {
+                case 'clear':
+                    await clearGroupHistory();
+                    break;
+                case 'rename':
+                    showRenameGroupModal();
+                    break;
+                case 'members':
+                    showManageMembersModal();
+                    break;
+                case 'delete':
+                    await deleteGroup(currentGroupId, currentGroupName);
+                    break;
+            }
+        });
+
+        // 清空群组聊天记录
+        async function clearGroupHistory() {
+            if (!confirm(`确定要清空群组"${currentGroupName}"的聊天记录吗？`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/groups/${currentGroupId}/clear`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    // 清空界面
+                    messagesContainer.innerHTML = '';
+                    messageCount = 0;
+                    updateMessageCount();
+                    addGroupMessage('assistant', '系统', '聊天记录已清空');
+                } else {
+                    alert('清空聊天记录失败');
+                }
+            } catch (error) {
+                console.error('清空聊天记录失败:', error);
+                alert('清空聊天记录失败');
+            }
+        }
+
+        // 更改群名模态框
+        const renameGroupModal = document.getElementById('renameGroupModal');
+        const closeRenameGroupModal = document.getElementById('closeRenameGroupModal');
+        const cancelRenameGroupBtn = document.getElementById('cancelRenameGroupBtn');
+        const confirmRenameGroupBtn = document.getElementById('confirmRenameGroupBtn');
+        const renameGroupNameInput = document.getElementById('renameGroupNameInput');
+
+        function showRenameGroupModal() {
+            renameGroupNameInput.value = currentGroupName.replace('👥 ', '');
+            renameGroupModal.classList.add('active');
+            renameGroupNameInput.focus();
+        }
+
+        closeRenameGroupModal.addEventListener('click', () => {
+            renameGroupModal.classList.remove('active');
+        });
+
+        cancelRenameGroupBtn.addEventListener('click', () => {
+            renameGroupModal.classList.remove('active');
+        });
+
+        confirmRenameGroupBtn.addEventListener('click', async () => {
+            const newName = renameGroupNameInput.value.trim();
+            if (!newName) {
+                alert('请输入新的群组名称');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/groups/${currentGroupId}/name`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: newName })
+                });
+
+                if (response.ok) {
+                    currentGroupName = newName;
+                    chatName.textContent = `👥 ${newName}`;
+                    renameGroupModal.classList.remove('active');
+                    await loadGroups(); // 更新群组列表
+                    alert('群名修改成功！');
+                } else {
+                    alert('修改群名失败');
+                }
+            } catch (error) {
+                console.error('修改群名失败:', error);
+                alert('修改群名失败');
+            }
+        });
+
+        // 点击模态框外部关闭
+        renameGroupModal.addEventListener('click', (e) => {
+            if (e.target === renameGroupModal) {
+                renameGroupModal.classList.remove('active');
+            }
+        });
+
+        // 管理成员模态框
+        const manageMembersModal = document.getElementById('manageMembersModal');
+        const closeManageMembersModal = document.getElementById('closeManageMembersModal');
+        const cancelManageMembersBtn = document.getElementById('cancelManageMembersBtn');
+        const currentMembersList = document.getElementById('currentMembersList');
+        const availableMembersList = document.getElementById('availableMembersList');
+
+        function showManageMembersModal() {
+            // 获取当前群组
+            const group = groups.find(g => g.group_id === currentGroupId);
+            if (!group) return;
+
+            // 渲染当前成员
+            currentMembersList.innerHTML = '';
+            group.members.forEach(memberId => {
+                const gf = girlfriends.find(g => g.girlfriend_id === memberId);
+                if (gf) {
+                    const memberDiv = document.createElement('div');
+                    memberDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #f0f0f0;';
+                    memberDiv.innerHTML = `
+                        <span>${gf.name}</span>
+                        <button class="remove-member-btn" data-member-id="${memberId}" style="padding: 4px 8px; background: #fee; border: 1px solid #fcc; border-radius: 4px; cursor: pointer; color: #c33; font-size: 12px;">移除</button>
+                    `;
+                    currentMembersList.appendChild(memberDiv);
+                }
+            });
+
+            // 渲染可添加的成员（非当前群组成员）
+            availableMembersList.innerHTML = '';
+            girlfriends.forEach(gf => {
+                if (!group.members.includes(gf.girlfriend_id)) {
+                    const label = document.createElement('label');
+                    label.style.cssText = 'display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #f0f0f0; cursor: pointer;';
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.value = gf.girlfriend_id;
+                    checkbox.style.cssText = 'margin-right: 10px;';
+
+                    label.appendChild(checkbox);
+                    label.appendChild(document.createTextNode(gf.name));
+                    availableMembersList.appendChild(label);
+                }
+            });
+
+            manageMembersModal.classList.add('active');
+        }
+
+        // 当前成员列表 - 移除成员事件
+        currentMembersList.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('remove-member-btn')) {
+                const memberId = e.target.dataset.memberId;
+                const memberName = e.target.parentElement.querySelector('span').textContent;
+
+                if (!confirm(`确定要将 ${memberName} 移出群组吗？`)) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${API_URL}/groups/${currentGroupId}/members/${memberId}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (response.ok) {
+                        // 刷新成员列表
+                        showManageMembersModal();
+                        // 更新群组列表
+                        await loadGroups();
+                        // 更新头部成员数量
+                        const group = groups.find(g => g.group_id === currentGroupId);
+                        if (group) {
+                            chatStatus.textContent = `${group.members.length} 个成员`;
+                        }
+                    } else {
+                        alert('移除成员失败');
+                    }
+                } catch (error) {
+                    console.error('移除成员失败:', error);
+                    alert('移除成员失败');
+                }
+            }
+        });
+
+        // 可用成员列表 - 添加成员
+        const addSelectedMembersBtn = document.createElement('button');
+        addSelectedMembersBtn.textContent = '添加选中成员';
+        addSelectedMembersBtn.className = 'btn btn-confirm';
+        addSelectedMembersBtn.style.cssText = 'margin-top: 10px; width: 100%;';
+
+        availableMembersList.parentNode.insertBefore(addSelectedMembersBtn, availableMembersList.nextSibling);
+
+        addSelectedMembersBtn.addEventListener('click', async () => {
+            const selectedCheckboxes = availableMembersList.querySelectorAll('input:checked');
+            if (selectedCheckboxes.length === 0) {
+                alert('请选择要添加的成员');
+                return;
+            }
+
+            for (const checkbox of selectedCheckboxes) {
+                const memberId = checkbox.value;
+                try {
+                    const response = await fetch(`${API_URL}/groups/${currentGroupId}/members`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ girlfriend_id: memberId })
+                    });
+
+                    if (!response.ok) {
+                        alert(`添加成员失败`);
+                        return;
+                    }
+                } catch (error) {
+                    console.error('添加成员失败:', error);
+                    alert('添加成员失败');
+                    return;
+                }
+            }
+
+            // 刷新成员列表
+            showManageMembersModal();
+            // 更新群组列表
+            await loadGroups();
+            // 更新头部成员数量
+            const group = groups.find(g => g.group_id === currentGroupId);
+            if (group) {
+                chatStatus.textContent = `${group.members.length} 个成员`;
+            }
+        });
+
+        closeManageMembersModal.addEventListener('click', () => {
+            manageMembersModal.classList.remove('active');
+        });
+
+        cancelManageMembersBtn.addEventListener('click', () => {
+            manageMembersModal.classList.remove('active');
+        });
+
+        // 点击模态框外部关闭
+        manageMembersModal.addEventListener('click', (e) => {
+            if (e.target === manageMembersModal) {
+                manageMembersModal.classList.remove('active');
+            }
+        });
+
+        // ============= @功能相关代码 =============
+
+        // @按钮点击事件
+        mentionBtn.addEventListener('click', () => {
+            openMentionModal();
+        });
+
+        // 打开@角色选择弹窗
+        function openMentionModal() {
+            if (!currentGroupId) {
+                alert('请先选择群组');
+                return;
+            }
+
+            // 获取当前群组信息
+            const currentGroup = groups.find(g => g.group_id === currentGroupId);
+            if (!currentGroup) {
+                alert('群组信息不存在');
+                return;
+            }
+
+            // 每次打开弹窗时，清空之前的@选择，让用户重新选择
+            mentionedGirlfriends = [];
+            updateMentionedTags();
+
+            // 渲染群组成员列表
+            mentionCharacterList.innerHTML = '';
+            currentGroup.members.forEach(memberId => {
+                const gf = girlfriends.find(g => g.girlfriend_id === memberId);
+                if (!gf) return;
+
+                // 检查是否已经被@
+                const isMentioned = mentionedGirlfriends.some(m => m.girlfriend_id === gf.girlfriend_id);
+
+                const item = document.createElement('div');
+                item.style.cssText = 'padding: 12px; border-bottom: 1px solid #f0f0f0; cursor: pointer; display: flex; align-items: center; gap: 10px;';
+                item.innerHTML = `
+                    <input type="checkbox" value="${gf.girlfriend_id}" ${isMentioned ? 'checked' : ''} style="width: 18px; height: 18px;">
+                    <div style="flex: 1;">
+                        <div style="font-weight: 500;">${gf.name}</div>
+                        <div style="font-size: 12px; color: #999;">${gf.is_system ? '系统女友' : '自定义女友'}</div>
+                    </div>
+                `;
+                mentionCharacterList.appendChild(item);
+            });
+
+            mentionModal.classList.add('active');
+        }
+
+        // 确认@选择
+        confirmMentionBtn.addEventListener('click', () => {
+            const checkedBoxes = mentionCharacterList.querySelectorAll('input:checked');
+
+            // 更新已@的角色列表
+            mentionedGirlfriends = [];
+            checkedBoxes.forEach(cb => {
+                const gf = girlfriends.find(g => g.girlfriend_id === cb.value);
+                if (gf) {
+                    mentionedGirlfriends.push({
+                        girlfriend_id: gf.girlfriend_id,
+                        name: gf.name
+                    });
+                }
+            });
+
+            // 更新显示
+            updateMentionedTags();
+
+            // 关闭弹窗
+            mentionModal.classList.remove('active');
+        });
+
+        // 取消@选择
+        cancelMentionBtn.addEventListener('click', () => {
+            mentionModal.classList.remove('active');
+        });
+
+        // 关闭@弹窗
+        closeMentionModal.addEventListener('click', () => {
+            mentionModal.classList.remove('active');
+        });
+
+        // 点击弹窗外部关闭
+        mentionModal.addEventListener('click', (e) => {
+            if (e.target === mentionModal) {
+                mentionModal.classList.remove('active');
+            }
+        });
+
+        // 更新@标签显示
+        function updateMentionedTags() {
+            // 清空下方标签显示
+            mentionedTags.innerHTML = '';
+
+            if (mentionedGirlfriends.length > 0) {
+                // 有@的角色时，按钮显示高亮效果
+                mentionBtn.classList.add('has-mentions');
+            } else {
+                mentionBtn.classList.remove('has-mentions');
+            }
+
+            // 在输入框的光标位置插入 @角色名
+            if (mentionedGirlfriends.length > 0) {
+                mentionedGirlfriends.forEach(gf => {
+                    insertAtCursor(messageInput, `@${gf.name} `);
+                });
+            }
+        }
+
+        // 在光标位置插入文本
+        function insertAtCursor(textarea, text) {
+            const startPos = textarea.selectionStart;
+            const endPos = textarea.selectionEnd;
+            const value = textarea.value;
+
+            textarea.value = value.substring(0, startPos) + text + value.substring(endPos);
+
+            // 设置光标位置到插入文本之后
+            const newPos = startPos + text.length;
+            textarea.setSelectionRange(newPos, newPos);
+            textarea.focus();
+
+            // 触发input事件以确保任何相关监听器被调用
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        // 修改selectGroup函数，显示/隐藏@按钮
+        const originalSelectGroup = selectGroup;
+        selectGroup = function(group) {
+            // 调用原始函数
+            originalSelectGroup(group);
+
+            // 显示@按钮（群聊模式）
+            mentionBtn.style.display = 'flex';
+
+            // 清空之前的@选择
+            mentionedGirlfriends = [];
+            updateMentionedTags();
+        };
+
+        // 修改selectGirlfriend函数，隐藏@按钮
+        const originalSelectGirlfriend = selectGirlfriend;
+        selectGirlfriend = function(gf) {
+            // 调用原始函数
+            originalSelectGirlfriend(gf);
+
+            // 隐藏@按钮（私聊模式）
+            mentionBtn.style.display = 'none';
+
+            // 清空@选择
+            mentionedGirlfriends = [];
+            updateMentionedTags();
+        };
+
+        // 修改sendGroupMessage函数，使用SSE接收流式回复
+        const originalSendGroupMessage = sendGroupMessage;
+        sendGroupMessage = async function(content) {
+            // 立即显示用户消息
+            const time = formatTime(new Date());
+
+            // 直接使用输入内容，@mentions已经通过insertAtCursor添加到content中了
+            restoreGroupMessage('user', '用户', content, time);
+
+            messageInput.value = '';
+            messageInput.style.height = 'auto';
+
+            // 立即清空艾特状态
+            const tempMentions = [...mentionedGirlfriends];  // 保存副本用于发送
+            mentionedGirlfriends = [];
+            updateMentionedTags();
+
+            // 清空输入框并允许继续输入
+            messageCount++;
+            updateMessageCount();
+            messageInput.disabled = false;
+            sendBtn.disabled = false;
+            messageInput.focus();
+
+            try {
+                setStatus('loading', 'AI正在回复...');
+
+                // 构建请求数据，包含@的角色列表
+                const requestData = {
+                    user_id: currentUserId,
+                    message: content,
+                    mentioned_girlfriends: tempMentions.map(g => g.girlfriend_id)
+                };
+
+                console.log('发送群聊消息（SSE模式）:', requestData);
+
+                // 使用 fetch POST 请求
+                const response = await fetch(`${API_URL}/groups/${currentGroupId}/chat/stream`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestData)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                // 处理 SSE 流
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                let responseCount = 0;  // 跟踪回复数量
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';  // 保留最后一个不完整的行
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            try {
+                                const event = JSON.parse(data);
+
+                                if (event.name || event.girlfriend_name) {
+                                    // AI 回复事件
+                                    responseCount++;
+                                    const aiTime = formatTime(new Date(event.message.timestamp));
+                                    const name = event.name || event.girlfriend_name;  // 兼容两种字段名
+                                    restoreGroupMessage('assistant', name, event.response, aiTime);
+                                    console.log(`收到回复 ${responseCount}:`, name);
+
+                                    // 收到回复后滚动到底部
+                                    setTimeout(() => scrollToBottom(true), 50);
+                                } else if (event.success) {
+                                    // 完成事件
+                                    console.log('SSE 流完成');
+                                    setStatus('connected', '已连接');
+                                } else if (event.error) {
+                                    // 错误事件
+                                    console.error('SSE 错误:', event.error);
+                                    addMessage('assistant', '抱歉，发生错误：' + event.error);
+                                    setStatus('disconnected', '连接失败');
+                                }
+                            } catch (e) {
+                                console.error('解析 SSE 数据失败:', e, data);
+                            }
+                        }
+                    }
+                }
+
+            } catch (error) {
+                console.error('发送消息失败:', error);
+                console.error('错误详情:', JSON.stringify(error, null, 2));
+
+                // 显示更友好的错误信息
+                let errorText = '抱歉，发送失败了';
+                if (error.message) {
+                    errorText += '：' + error.message;
+                } else {
+                    errorText += '，请查看控制台了解详情';
+                }
+                addMessage('assistant', errorText);
+                setStatus('disconnected', '连接失败');
+            }
+
+            // 清空@选择（发送后）
+            mentionedGirlfriends = [];
+            updateMentionedTags();
+        };
+
+        // 页面加载时初始化
+        window.addEventListener('load', init);
+
+        // 定期检查连接状态
+        setInterval(checkConnection, 30000);
+    </script>
+</body>
+</html>

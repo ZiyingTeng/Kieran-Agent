@@ -1,0 +1,46 @@
+# Version control
+.git/
+.gitignore
+
+# Python cache and build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+.pytest_cache/
+.mypy_cache/
+build/
+dist/
+
+# Secrets — never bake into image; pass via env_file at runtime
+.env
+.env.*
+
+# Frontend source (built output in web/dist/ is included)
+frontend/
+node_modules/
+web/
+
+# Runtime state — mounted as Docker volumes, not baked into image
+logs/
+data/groups/
+user_profiles/
+databases/
+
+# Process management
+gunicorn.pid
+
+# Documentation / scripts not needed at runtime
+cookbook/
+scripts/
+load_tests/
+tests/
+CLAUDE.md
+
+# Archives
+*.zip
+*.tar.gz
+
+# IDE
+.vscode/
+.idea/

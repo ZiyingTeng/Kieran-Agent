@@ -1,0 +1,80 @@
+services:
+
+  # ── Redis ─────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ── PostgreSQL + pgvector ─────────────────────────────────────────────────
+  pgvector:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mysecretpassword}
+      POSTGRES_DB: postgres
+    volumes:
+      - pgvector_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ── Application ───────────────────────────────────────────────────────────
+  app:
+    build: .
+    image: chatjoy:2.0
+    restart: unless-stopped
+    ports:
+      - "9001:8001"
+    # Load all API keys and config from .env, then override the connection
+    # strings so they point to the Docker service names instead of localhost.
+    env_file: .env
+    environment:
+      POSTGRES_URL: postgresql://postgres:${POSTGRES_PASSWORD:-mysecretpassword}@pgvector:5432/postgres
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      # Keep internal service traffic out of any proxy
+      NO_PROXY: "localhost,127.0.0.1,redis,pgvector"
+    volumes:
+      # Persistent state — survives container restarts and image rebuilds
+      - ./characters:/app/characters
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./user_profiles:/app/user_profiles
+      # fastembed model cache (~1.2 GB for BAAI/bge-m3, downloaded on first use)
+      - fastembed_cache:/root/.cache/fastembed
+    depends_on:
+      redis:
+        condition: service_healthy
+      pgvector:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8001/health/detailed', timeout=5)"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  redis_data:
+  pgvector_data:
+  fastembed_cache:

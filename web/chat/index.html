@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 角色对话 - 聊天界面</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f0f2f5;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+    }
+
+    .chat-container {
+      width: 100%;
+      max-width: 800px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      background: white;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .chat-header {
+      padding: 16px 24px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .chat-header h1 {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .character-select {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* 用户消息 */
+    .user-message {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .user-message .message-bubble {
+      max-width: 70%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    /* AI 消息 */
+    .ai-message-wrapper {
+      position: relative;
+      margin-bottom: 20px;
+    }
+
+    .ai-message {
+      display: flex;
+      gap: 12px;
+      padding: 16px;
+      background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+      border-radius: 12px;
+      border: 1px solid #e0e0e0;
+      transition: all 0.3s ease;
+    }
+
+    .ai-message.editing {
+      border: 2px solid #4CAF50;
+      background: #f9fff9;
+    }
+
+    .ai-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
+    .ai-content {
+      flex: 1;
+    }
+
+    .ai-name {
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .ai-text {
+      color: #2c3e50;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .ai-text textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #4CAF50;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.6;
+      font-family: inherit;
+      resize: vertical;
+      outline: none;
+    }
+
+    /* 操作按钮 */
+    .action-buttons {
+      position: absolute;
+      right: -10px;
+      bottom: -10px;
+      display: flex;
+      gap: 8px;
+      background: white;
+      padding: 6px;
+      border-radius: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      z-index: 10;
+    }
+
+    .action-buttons button {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 12px;
+      border: none;
+      border-radius: 16px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .action-buttons button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-edit { background: #f0f0f0; color: #333; }
+    .btn-edit:hover:not(:disabled) { background: #e0e0e0; }
+
+    .btn-save { background: #4CAF50; color: white; }
+    .btn-save:hover:not(:disabled) { background: #45a049; transform: scale(1.05); }
+
+    .btn-cancel { background: #f44336; color: white; }
+    .btn-cancel:hover:not(:disabled) { background: #da190b; transform: scale(1.05); }
+
+    .btn-regenerate { background: #2196F3; color: white; }
+    .btn-regenerate:hover:not(:disabled) { background: #0b7dda; transform: scale(1.05); }
+
+    /* 确认对话框 */
+    .confirm-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .confirm-dialog {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .confirm-dialog h3 { margin-bottom: 16px; color: #333; }
+
+    .preview {
+      margin: 12px 0;
+      padding: 12px;
+      background: #f5f5f5;
+      border-radius: 8px;
+    }
+
+    .preview-label {
+      font-size: 12px;
+      color: #999;
+      margin-bottom: 4px;
+    }
+
+    .preview-text {
+      color: #333;
+      white-space: pre-wrap;
+    }
+
+    .dialog-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      margin-top: 20px;
+    }
+
+    .dialog-actions button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-dialog-cancel { background: #f0f0f0; color: #333; }
+    .btn-dialog-cancel:hover { background: #e0e0e0; }
+
+    .btn-dialog-confirm { background: #4CAF50; color: white; }
+    .btn-dialog-confirm:hover { background: #45a049; }
+
+    /* 输入区域 */
+    .chat-input {
+      padding: 16px 24px;
+      background: white;
+      border-top: 1px solid #e0e0e0;
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+    }
+
+    .chat-input textarea {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      resize: none;
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+      min-height: 60px;
+    }
+
+    .chat-input textarea:focus {
+      border-color: #2196F3;
+    }
+
+    .send-button {
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .send-button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .send-button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #333;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 4px;
+      z-index: 10000;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <div class="chat-header">
+      <h1>🎭 AI 角色对话</h1>
+      <select class="character-select" id="characterSelect">
+        <option value="">选择角色...</option>
+        <option value="Evelyn">Evelyn</option>
+        <option value="ShenYan">沈砚</option>
+        <option value="Luna">Luna</option>
+        <option value="Aiko">Aiko</option>
+      </select>
+    </div>
+
+    <div class="chat-messages" id="chatMessages"></div>
+
+    <div class="chat-input">
+      <textarea id="messageInput" placeholder="输入你的消息... (Shift+Enter 发送)"></textarea>
+      <button class="send-button" id="sendButton">发送</button>
+    </div>
+  </div>
+
+  <script>
+    // 配置
+    const API_BASE_URL = 'http://localhost:8001';
+    const userId = 'user_' + Date.now();
+    let selectedCharacter = '';
+    let messages = [];
+
+    // DOM 元素
+    const chatMessages = document.getElementById('chatMessages');
+    const messageInput = document.getElementById('messageInput');
+    const sendButton = document.getElementById('sendButton');
+    const characterSelect = document.getElementById('characterSelect');
+
+    // 选择角色
+    characterSelect.addEventListener('change', (e) => {
+      selectedCharacter = e.target.value;
+    });
+
+    // 发送消息
+    async function sendMessage() {
+      const text = messageInput.value.trim();
+      if (!text || !selectedCharacter) {
+        if (!selectedCharacter) showToast('请先选择角色');
+        return;
+      }
+
+      messageInput.value = '';
+      addMessage('user', text);
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/mobile/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expertId: selectedCharacter, userId: userId, mes: text })
+        });
+
+        const result = await response.json();
+        if (result.success && result.content) {
+          addMessage('assistant', result.content);
+        } else {
+          addMessage('assistant', '抱歉，我遇到了一些问题：' + (result.error || '未知错误'));
+        }
+      } catch (error) {
+        addMessage('assistant', '抱歉，网络连接出现问题，请稍后再试。');
+      }
+    }
+
+    // 添加消息
+    function addMessage(role, content) {
+      const msg = { role, content, id: Date.now() };
+      messages.push(msg);
+
+      if (role === 'user') {
+        const div = document.createElement('div');
+        div.className = 'user-message';
+        div.innerHTML = `<div class="message-bubble">${escapeHtml(content)}</div>`;
+        chatMessages.appendChild(div);
+      } else {
+        createAiMessage(msg);
+      }
+      scrollToBottom();
+    }
+
+    // 创建 AI 消息（带编辑功能）
+    function createAiMessage(msg) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'ai-message-wrapper';
+      wrapper.dataset.msgId = msg.id;
+
+      wrapper.innerHTML = `
+        <div class="ai-message">
+          <div class="ai-avatar">${selectedCharacter[0] || 'AI'}</div>
+          <div class="ai-content">
+            <div class="ai-name">${selectedCharacter || 'AI助手'}</div>
+            <div class="ai-text">${escapeHtml(msg.content)}</div>
+          </div>
+        </div>
+        <div class="action-buttons">
+          <button class="btn-edit" onclick="startEdit(${msg.id})">✏️ 编辑</button>
+          <button class="btn-regenerate" onclick="regenerateMessage(${msg.id})">🔄 重新生成</button>
+        </div>
+      `;
+      chatMessages.appendChild(wrapper);
+    }
+
+    // 开始编辑
+    window.startEdit = function(msgId) {
+      const wrapper = document.querySelector(`[data-msg-id="${msgId}"]`);
+      if (!wrapper) return;
+
+      const aiMessage = wrapper.querySelector('.ai-message');
+      const aiText = wrapper.querySelector('.ai-text');
+      const actionButtons = wrapper.querySelector('.action-buttons');
+
+      aiMessage.classList.add('editing');
+      const originalContent = aiText.textContent;
+
+      aiText.innerHTML = `<textarea rows="4">${originalContent}</textarea>`;
+      actionButtons.innerHTML = `
+        <button class="btn-save" onclick="saveEdit(${msgId})">✓ 保存</button>
+        <button class="btn-cancel" onclick="cancelEdit(${msgId})">✕ 取消</button>
+      `;
+
+      const textarea = aiText.querySelector('textarea');
+      textarea.focus();
+
+      textarea.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          saveEdit(msgId);
+        } else if (e.key === 'Escape') {
+          cancelEdit(msgId);
+        }
+      });
+    };
+
+    // 取消编辑
+    window.cancelEdit = function(msgId) {
+      const wrapper = document.querySelector(`[data-msg-id="${msgId}"]`);
+      if (!wrapper) return;
+
+      const msg = messages.find(m => m.id === msgId);
+      if (!msg) return;
+
+      const aiMessage = wrapper.querySelector('.ai-message');
+      const aiText = wrapper.querySelector('.ai-text');
+      const actionButtons = wrapper.querySelector('.action-buttons');
+
+      aiMessage.classList.remove('editing');
+      aiText.textContent = msg.content;
+      actionButtons.innerHTML = `
+        <button class="btn-edit" onclick="startEdit(${msgId})">✏️ 编辑</button>
+        <button class="btn-regenerate" onclick="regenerateMessage(${msgId})">🔄 重新生成</button>
+      `;
+    };
+
+    // 保存编辑（显示确认对话框）
+    window.saveEdit = function(msgId) {
+      const wrapper = document.querySelector(`[data-msg-id="${msgId}"]`);
+      if (!wrapper) return;
+
+      const msg = messages.find(m => m.id === msgId);
+      if (!msg) return;
+
+      const textarea = wrapper.querySelector('textarea');
+      const newContent = textarea.value.trim();
+
+      if (!newContent) {
+        showToast('回复内容不能为空');
+        return;
+      }
+
+      showConfirmDialog(msg.content, newContent, msgId);
+    };
+
+    // 显示确认对话框
+    function showConfirmDialog(original, newContent, msgId) {
+      const overlay = document.createElement('div');
+      overlay.className = 'confirm-overlay';
+      overlay.innerHTML = `
+        <div class="confirm-dialog">
+          <h3>⚠️ 确认保存</h3>
+          <p>确定要保存修改后的回复吗？</p>
+          <div class="preview">
+            <div class="preview-label">原回复：</div>
+            <div class="preview-text">${escapeHtml(original)}</div>
+          </div>
+          <div class="preview">
+            <div class="preview-label">新回复：</div>
+            <div class="preview-text">${escapeHtml(newContent)}</div>
+          </div>
+          <div class="dialog-actions">
+            <button class="btn-dialog-cancel" onclick="this.closest('.confirm-overlay').remove()">取消</button>
+            <button class="btn-dialog-confirm" id="confirmSave">确定保存</button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(overlay);
+
+      overlay.querySelector('#confirmSave').onclick = async () => {
+        const userMessage = findUserMessageForAi(msgId);
+        if (!userMessage) {
+          showToast('找不到对应的用户消息');
+          overlay.remove();
+          return;
+        }
+
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/roles/update_history`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: userId,
+              expertId: selectedCharacter,
+              mes: userMessage,
+              replay: newContent
+            })
+          });
+
+          const result = await response.json();
+          if (result.success) {
+            const msg = messages.find(m => m.id === msgId);
+            if (msg) msg.content = newContent;
+
+            cancelEdit(msgId);
+            const wrapper = document.querySelector(`[data-msg-id="${msgId}"]`);
+            const aiText = wrapper.querySelector('.ai-text');
+            aiText.textContent = newContent;
+
+            showToast('✅ 保存成功');
+          } else {
+            showToast('❌ 保存失败：' + result.msg);
+          }
+        } catch (error) {
+          showToast('❌ 保存失败：' + error.message);
+        }
+
+        overlay.remove();
+      };
+    }
+
+    // 重新生成
+    window.regenerateMessage = async function(msgId) {
+      const wrapper = document.querySelector(`[data-msg-id="${msgId}"]`);
+      if (!wrapper) return;
+
+      const btn = wrapper.querySelector('.btn-regenerate');
+      btn.disabled = true;
+      btn.innerHTML = '⏳ 生成中...';
+
+      const userMessage = findUserMessageForAi(msgId);
+      if (!userMessage) {
+        showToast('找不到对应的用户消息');
+        btn.disabled = false;
+        btn.innerHTML = '🔄 重新生成';
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/mobile/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            expertId: selectedCharacter,
+            userId: userId,
+            mes: userMessage,
+            retry: true
+          })
+        });
+
+        const result = await response.json();
+        if (result.success && result.content) {
+          const msg = messages.find(m => m.id === msgId);
+          if (msg) msg.content = result.content;
+
+          const aiText = wrapper.querySelector('.ai-text');
+          aiText.textContent = result.content;
+
+          showToast('✅ 重新生成成功');
+        } else {
+          showToast('❌ 生成失败：' + (result.error || '未知错误'));
+        }
+      } catch (error) {
+        showToast('❌ 生成失败：' + error.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '🔄 重新生成';
+      }
+    };
+
+    // 找到 AI 消息对应的用户消息
+    function findUserMessageForAi(msgId) {
+      const msgIndex = messages.findIndex(m => m.id === msgId);
+      for (let i = msgIndex - 1; i >= 0; i--) {
+        if (messages[i].role === 'user') {
+          return messages[i].content;
+        }
+      }
+      return null;
+    }
+
+    // 显示 Toast
+    function showToast(message) {
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2000);
+    }
+
+    // 滚动到底部
+    function scrollToBottom() {
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // HTML 转义
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // 事件监听
+    sendButton.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+  </script>
+</body>
+</html>

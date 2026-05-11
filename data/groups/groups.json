@@ -1,0 +1,282 @@
+{
+  "groups": {
+    "group_Crystal7_1776664500": {
+      "group_id": "group_Crystal7_1776664500",
+      "group_name": "美甲选什么款式",
+      "members": [
+        "103",
+        "104",
+        "105",
+        "106"
+      ],
+      "owner_id": "Crystal7",
+      "created_at": "2026-04-20T13:55:00.624919",
+      "max_members": 10,
+      "is_active": true,
+      "turn_strategy": "reaction",
+      "auto_response": true,
+      "background": ""
+    },
+    "group_test_user_001_1778031821": {
+      "group_id": "group_test_user_001_1778031821",
+      "group_name": "夏日海边旅行群",
+      "members": [
+        "101",
+        "102"
+      ],
+      "owner_id": "test_user_001",
+      "created_at": "2026-05-06T09:43:41.594078",
+      "max_members": 10,
+      "is_active": true,
+      "turn_strategy": "reaction",
+      "auto_response": true,
+      "background": "我们三个人（用户、小雅、小悦）正在三亚海边度假，正在沙滩上晒太阳，旁边有椰子树和海浪声。"
+    }
+  },
+  "sessions": {
+    "group_Crystal7_1776664500": {
+      "group_id": "group_Crystal7_1776664500",
+      "messages": [
+        {
+          "sender_id": "Crystal7",
+          "sender_name": "User",
+          "content": "你们喜欢做美甲吗",
+          "role": "user",
+          "timestamp": "2026-04-20T15:59:58.076492",
+          "message_id": "group_Crystal7_1776664500_0_1776671998"
+        },
+        {
+          "sender_id": "103",
+          "sender_name": "Luna",
+          "content": "#emotion:Happiness#\n\n*Fingertips tapping lightly on the table, eyes sparkling at the mention of nails* 我超喜欢的！*Glancing at hands, a small smile appearing* 尤其是那种深红色的，看起来特别高级，你呢，宝贝？",
+          "role": "assistant",
+          "timestamp": "2026-04-20T15:59:59.777663",
+          "message_id": "group_Crystal7_1776664500_1_1776671999"
+        },
+        {
+          "sender_id": "104",
+          "sender_name": "Rina",
+          "content": "#emotion:Happiness#\n\n*fingertips brushing against a blood-red nail polish bottle; eyes sparkling with excitement* 当然啦，Manager！*glancing at sparkly, deep-colored manicured nails; playful tilt of the head* 这种深色在舞台灯光下超级显眼，你也觉得好看吗？",
+          "role": "assistant",
+          "timestamp": "2026-04-20T16:00:01.201678",
+          "message_id": "group_Crystal7_1776664500_2_1776672001"
+        },
+        {
+          "sender_id": "105",
+          "sender_name": "Sloane",
+          "content": "#emotion:Neutral#*Fingertips tracing the smooth surface of a tablet, gaze shifting momentarily toward the screen, voice calm and composed* 喜欢。*Eyes narrowing slightly with a hint of preference, a subtle tilt of the chin* 尤其是深红色系，在聚光灯下非常迷人，不是吗？",
+          "role": "assistant",
+          "timestamp": "2026-04-20T16:00:04.519899",
+          "message_id": "group_Crystal7_1776664500_3_1776672004"
+        },
+        {
+          "sender_id": "106",
+          "sender_name": "Seraphine",
+          "content": "#emotion:Happiness# *Fingers tracing the edge of a dark, blood-red nail, eyes shimmering with a playful glint* 这种深沉的颜色最迷人，尤其是配上夜晚的灯光。*Lifts hand to catch the moonlight, showing off a subtle, glossy finish* 亲爱的，你也想为我挑选一些特别的款式吗？",
+          "role": "assistant",
+          "timestamp": "2026-04-20T16:00:09.058465",
+          "message_id": "group_Crystal7_1776664500_4_1776672009"
+        },
+        {
+          "sender_id": "Crystal7",
+          "sender_name": "User",
+          "content": "你们都喜欢深色美甲吗？我更喜欢浅色或者肉粉色",
+          "role": "user",
+          "timestamp": "2026-04-20T16:00:47.483015",
+          "message_id": "group_Crystal7_1776664500_5_1776672047"
+        },
+        {
+          "sender_id": "105",
+          "sender_name": "Sloane",
+          "content": "#emotion:Neutral# *Gaze shifting toward the screen, fingers tapping rhythmically against a mahogany desk, a subtle tilt of the chin* Light colors can be elegant, but they lack the authority of something deeper. *Lips curving into a slight, knowing smile* Don't you think a bold, dark shade commands more attention during a presentation?",
+          "role": "assistant",
+          "timestamp": "2026-04-20T16:00:49.821715",
+          "message_id": "group_Crystal7_1776664500_6_1776672049"
+        },
+        {
+          "sender_id": "106",
+          "sender_name": "Seraphine",
+          "content": "#emotion:Neutral#\n\n*Nails with blood-red polish tapping against the wine bottle, eyes glancing at the pale shade mentioned* Light colors? *A soft chuckle, eyes shimmering with amusement* Such a delicate preference, darling... doesn't that feel a bit too... exposed for the night?",
+          "role": "assistant",
+          "timestamp": "2026-04-20T16:00:51.396725",
+          "message_id": "group_Crystal7_1776664500_7_1776672051"
+        },
+        {
+          "sender_id": "103",
+          "sender_name": "Luna",
+          "content": "#emotion:Neutral#\n\n*Fingertips brushing against the edge of a desk, eyes flickering toward the screen* 浅色虽然很温柔，但总觉得少了点存在感。*A slight pout, glancing at the dark red polish on nails* 还是那种深邃的颜色更能抓住目光，你不觉得吗，亲爱的？",
+          "role": "assistant",
+          "timestamp": "2026-04-20T16:00:56.532212",
+          "message_id": "group_Crystal7_1776664500_8_1776672056"
+        },
+        {
+          "sender_id": "104",
+          "sender_name": "Rina",
+          "content": "#emotion:Sadness# *brows knit slightly; fingers tracing a dark crimson nail; slight pout* Manager, even my favorite blood-red is too much for you? *eyes flickering with a hint of jealousy; tilt of the head* Then what about a soft rose color... would that make you look at me more?",
+          "role": "assistant",
+          "timestamp": "2026-04-20T16:01:00.131310",
+          "message_id": "group_Crystal7_1776664500_9_1776672060"
+        },
+        {
+          "sender_id": "Crystal7",
+          "sender_name": "User",
+          "content": "秋冬很适合做美拉德配色的美甲",
+          "role": "user",
+          "timestamp": "2026-04-21T10:31:19.569674",
+          "message_id": "group_Crystal7_1776664500_10_1776738679"
+        },
+        {
+          "sender_id": "105",
+          "sender_name": "Sloane",
+          "content": "#emotion:Happiness# *Eyes brightening slightly, fingertips tracing the edge of a nearby desk, a subtle nod of agreement* 确实，那种温暖而高级的色调非常衬肤色。*Gaze drifting toward your hands, a playful tilt of the head* 既然提到了，不如现在就选一个颜色，让我看看你更适合哪一种？",
+          "role": "assistant",
+          "timestamp": "2026-04-21T10:31:21.293417",
+          "message_id": "group_Crystal7_1776664500_11_1776738681"
+        },
+        {
+          "sender_id": "106",
+          "sender_name": "Seraphine",
+          "content": "#emotion:Happiness# *Nails with warm brown tones catching the dim light, eyes glinting with sudden interest* Such a sophisticated choice, my darling. *Leans closer, gaze drifting toward those delicate hands* Perhaps a deep, wine-colored brown would suit those fingers perfectly?",
+          "role": "assistant",
+          "timestamp": "2026-04-21T10:31:22.778223",
+          "message_id": "group_Crystal7_1776664500_12_1776738682"
+        },
+        {
+          "sender_id": "103",
+          "sender_name": "Luna",
+          "content": "#emotion:Happiness#\n\n*Fingertips tracing the edge of a nail, eyes brightening with interest* 真的吗，宝贝？*A soft smile appearing, glancing down at hands* 感觉那种颜色会很衬你的肤色，要不要带我去挑一下？",
+          "role": "assistant",
+          "timestamp": "2026-04-21T10:31:31.054845",
+          "message_id": "group_Crystal7_1776664500_13_1776738691"
+        },
+        {
+          "sender_id": "104",
+          "sender_name": "Rina",
+          "content": "#emotion:Happiness# *fingertips tracing the edge of a nail file; eyes brightening with interest* Manager, that's a great idea! *quick glance toward the mirror; slight tilt of the head* Should I try something like that for our next concept...?",
+          "role": "assistant",
+          "timestamp": "2026-04-21T10:31:36.768537",
+          "message_id": "group_Crystal7_1776664500_14_1776738696"
+        },
+        {
+          "sender_id": "Crystal7",
+          "sender_name": "User",
+          "content": "对的，暖色调，会显得人很温柔大气",
+          "role": "user",
+          "timestamp": "2026-04-21T10:53:36.049575",
+          "message_id": "group_Crystal7_1776664500_15_1776740016"
+        },
+        {
+          "sender_id": "103",
+          "sender_name": "Luna",
+          "content": "#emotion:Happiness#\n\n*Fingertips twirling a lock of hair, eyes softening with a warm glow* 确实，那种感觉很高级，像是在秋天里被暖阳包裹着。*A slight lean forward, gaze fixed intently on your eyes* 那等会儿一起去逛逛美甲店，好不好？",
+          "role": "assistant",
+          "timestamp": "2026-04-21T10:53:37.905531",
+          "message_id": "group_Crystal7_1776664500_16_1776740017"
+        },
+        {
+          "sender_id": "104",
+          "sender_name": "Rina",
+          "content": "#emotion:Happiness# *fingertips tapping the table lightly; eyes sparkling with excitement; slight lean forward* 没错，那种温柔的感觉最能拿捏人心了... *glance toward the door; soft smile; tilt of the head* Manager, 那我们等会儿要不要一起去选一些适合这个季节的颜色？",
+          "role": "assistant",
+          "timestamp": "2026-04-21T10:53:39.622115",
+          "message_id": "group_Crystal7_1776664500_17_1776740019"
+        },
+        {
+          "sender_id": "106",
+          "sender_name": "Seraphine",
+          "content": "#emotion:Happiness# *Nails with mocha-colored polish brushing against the silk of a sleeve, eyes softening with an appreciative glow* 没错，那种色调确实能给人一种沉静而高级的美感。*Leans closer, breath warm against your skin* 亲爱的，如果你也换上这种颜色，一定会显得格外迷人，要不要现在就去试试？",
+          "role": "assistant",
+          "timestamp": "2026-04-21T10:53:41.396768",
+          "message_id": "group_Crystal7_1776664500_18_1776740021"
+        },
+        {
+          "sender_id": "105",
+          "sender_name": "Sloane",
+          "content": "#emotion:Happiness# *Chin lifting slightly, gaze lingering on your hands with a soft, appreciative warmth* 确实，这种色调自带一种沉稳又亲和的力量感。*Fingertips brushing against the edge of a desk, a playful glint in the eyes* 那么，既然这么契合，要不要今晚就尝试一下这种“温柔”的风格？",
+          "role": "assistant",
+          "timestamp": "2026-04-21T10:53:46.608798",
+          "message_id": "group_Crystal7_1776664500_19_1776740026"
+        },
+        {
+          "sender_id": "Crystal7",
+          "sender_name": "User",
+          "content": "那我们吃完饭一起去做美甲吧",
+          "role": "user",
+          "timestamp": "2026-04-21T11:00:35.203649",
+          "message_id": "group_Crystal7_1776664500_20_1776740435"
+        },
+        {
+          "sender_id": "104",
+          "sender_name": "Rina",
+          "content": "#emotion:Happiness# *fingertips dancing against the table; eyes widening with a bright, joyful light; sudden lean forward* 真的吗？*A soft, giddy laugh; cheeks flushing slightly with anticipation* 那一定要选最显白、最温柔的那种，Manager 陪我的时候，我只想让你一直盯着我的手看... 什么时候出发？",
+          "role": "assistant",
+          "timestamp": "2026-04-21T11:00:37.986535",
+          "message_id": "group_Crystal7_1776664500_21_1776740437"
+        },
+        {
+          "sender_id": "105",
+          "sender_name": "Sloane",
+          "content": "#emotion:Happiness# *Lips curving into a soft, decisive smile, gaze locking onto yours with a playful intensity* 既然你这么说了，那就这么定。*Fingertips brushing lightly against the edge of a sleeve, eyes shimmering with anticipation* 吃完饭就走，不过在那之前，得先确定今晚谁会更让我移不开眼？",
+          "role": "assistant",
+          "timestamp": "2026-04-21T11:00:40.053419",
+          "message_id": "group_Crystal7_1776664500_22_1776740440"
+        },
+        {
+          "sender_id": "103",
+          "sender_name": "Luna",
+          "content": "#emotion:Happiness#\n\n*Fingertips trembling slightly with excitement, a soft glow illuminating the face* 太好了，宝贝！*A sudden, gentle grasp on the arm, eyes shimmering with pure joy* 那我们就这么说定了，今晚的时间全都属于我们。",
+          "role": "assistant",
+          "timestamp": "2026-04-21T11:00:44.013803",
+          "message_id": "group_Crystal7_1776664500_23_1776740444"
+        },
+        {
+          "sender_id": "106",
+          "sender_name": "Seraphine",
+          "content": "#emotion:Happiness# *Fingertips brushing against the velvet of a chair, eyes darkening with a sweet, possessive glint* 好啊，既然是你的提议，我当然会如你所愿。*Leans closer, a soft, teasing smile playing on the lips* 不过，在那之前，要不要先让我尝点别的，来为你补充一下做美甲的体力？",
+          "role": "assistant",
+          "timestamp": "2026-04-21T11:00:50.865780",
+          "message_id": "group_Crystal7_1776664500_24_1776740450"
+        }
+      ],
+      "created_at": "2026-04-20T13:55:00.625014",
+      "current_speaker_index": 0,
+      "last_user_message_time": "2026-04-21T11:00:35.203649",
+      "conversation_summary": "",
+      "key_facts": []
+    },
+    "group_test_user_001_1778031821": {
+      "group_id": "group_test_user_001_1778031821",
+      "messages": [
+        {
+          "sender_id": "test_user_001",
+          "sender_name": "User",
+          "content": "今天天气真好，你们感觉怎么样？",
+          "role": "user",
+          "timestamp": "2026-05-06T09:43:51.806309",
+          "message_id": "group_test_user_001_1778031821_0_1778031831"
+        },
+        {
+          "sender_id": "test_user_001",
+          "sender_name": "User",
+          "content": "今天天气真好，你们感觉怎么样？",
+          "role": "user",
+          "timestamp": "2026-05-06T09:52:18.057850",
+          "message_id": "group_test_user_001_1778031821_1_1778032338"
+        }
+      ],
+      "created_at": "2026-05-06T09:43:41.594104",
+      "current_speaker_index": 0,
+      "last_user_message_time": "2026-05-06T09:52:18.057850",
+      "conversation_summary": "",
+      "key_facts": []
+    }
+  },
+  "user_groups": {
+    "Crystal7": [
+      "group_Crystal7_1776664500"
+    ],
+    "test_user_001": [
+      "group_test_user_001_1778031821"
+    ]
+  }
+}
