@@ -236,6 +236,9 @@ class AsyncLongTermMemoryWrapper:
                 system_prompt=prompt,
                 max_tokens=8,
                 temperature=0.0,
+                model=current_model_config.get(
+                    "model_name", "google/gemma-4-26B-A4B-it"
+                ),
             )
         else:
             import openai

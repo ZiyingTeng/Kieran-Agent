@@ -156,9 +156,11 @@ class RelayClient:
         public_key: Optional[str] = None,
         image_url: str = "",
         api_path: str = "",
+        cur_time: Optional[int] = None,
     ) -> str:
         """构建 RSA 加密的鉴权参数。"""
-        cur_time = int(datetime.now().timestamp() * 1000)
+        if cur_time is None:
+            cur_time = int(datetime.now().timestamp() * 1000)
         effective_pkg = pkg_name or self.pkg_name
         effective_app = app_id or self.app_id
         effective_key = public_key or self.public_key
@@ -394,6 +396,7 @@ class RelayClient:
                 public_key=public_key,
                 image_url=image_url,
                 api_path=path,
+                cur_time=cur_time,
             ),
             "pkgName": effective_pkg,
             "sign": sign_md5,
