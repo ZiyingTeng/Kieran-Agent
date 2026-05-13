@@ -157,6 +157,20 @@ class AsyncLongTermMemoryWrapper:
 
     async def _record_in_background(self, msgs, memory_type, infer, **kwargs):
         try:
+            # 如果最后一条 assistant 消息是错误响应，跳过写入
+            assistant_msgs = [
+                m for m in msgs if getattr(m, "role", "") == "assistant"
+            ]
+            if assistant_msgs:
+                last_reply = assistant_msgs[-1]
+                last_text = (
+                    last_reply.content
+                    if hasattr(last_reply, "content")
+                    else str(last_reply)
+                )
+                if last_text.startswith("❌"):
+                    logger.info("LTM write skipped: error response")
+                    return
             filtered = await self._filter_noisy_msgs(msgs)
             if not filtered:
                 logger.info("LTM write skipped: no user msg with personal info")

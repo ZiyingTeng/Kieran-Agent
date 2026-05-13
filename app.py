@@ -83,6 +83,13 @@ logging.getLogger("mem0").setLevel(logging.WARNING)
 
 
 
+def _thinking_placeholder(char_name: str, user_msg: str) -> str:
+    """Return a 'thinking' fallback string in the user's language."""
+    if any('一' <= c <= '鿿' for c in (user_msg or "")):
+        return f"{char_name}在思考中..."
+    return f"{char_name} is thinking..."
+
+
 def _patch_mem0_record():
     """record() 只提取用户事实"""
     from agentscope.memory import Mem0LongTermMemory
@@ -916,7 +923,23 @@ async def chat(request: ChatRequest):
 
             # 如果文本为空，提供友好提示
             if not text or text.isspace():
-                text = f"{girlfriend_config['name']}在思考中..."
+                text = _thinking_placeholder(
+                    girlfriend_config['name'], request.mes
+                )
+
+            # 请求失败（❌ 错误或空内容占位符）直接返回 500，不写 DB
+            if text.startswith("❌") or " is thinking..." in text or "在思考中" in text:
+                logger.warning(f"AI响应失败，不写入历史: {text[:80]}")
+                from fastapi.responses import JSONResponse as _JSONResponse
+                return _JSONResponse(
+                    content=ChatResponse(
+                        success=False,
+                        error=text,
+                        content=None,
+                        code=-100
+                    ).dict(),
+                    status_code=500
+                )
 
             # 记录日志
             logger.info(f"AI响应生成成功: mes={request.mes}, userId={request.userId}, "
@@ -925,26 +948,15 @@ async def chat(request: ChatRequest):
 
             # agent.reply() 已将消息写入短期+长期记忆，此处只做 DB 持久化
             try:
-                # 💾 保存聊天历史到PostgreSQL（同步等待，确保保存完成）
-                try:
-                    await save_chat_history_to_db(
-                        request.userId,
-                        request.expertId,
-                        request.mes,
-                        text,
-                        None
-                    )
-                except Exception as e:
-                    logger.warning(f"保存聊天历史到数据库失败: {e}")
-
-                # 用户画像追踪暂时停用（画像系统待架构优化后重新启用）
-                # profile_manager = get_profile_manager()
-                # current_round = profile_manager.increment_round(...)
-                # if profile_manager.should_trigger_summary(...):
-                #     asyncio.create_task(trigger_summary())
-
+                await save_chat_history_to_db(
+                    request.userId,
+                    request.expertId,
+                    request.mes,
+                    text,
+                    None
+                )
             except Exception as e:
-                logger.warning(f"保存对话记忆失败: {e}")
+                logger.warning(f"保存聊天历史到数据库失败: {e}")
 
             # 返回AIGirl格式的响应
             return ChatResponse(
@@ -1836,7 +1848,20 @@ async def handle_websocket_chat(user_id: str, expert_id: str, content: str, webs
 
 
         if not response_text or response_text.isspace():
-            response_text = f"{girlfriend_config.get('name', 'AI')}在思考中..."
+            response_text = _thinking_placeholder(
+                girlfriend_config.get('name', 'AI'), content
+            )
+
+        # 请求失败（❌ 错误或空内容占位符）发 error 事件，不写 DB
+        if response_text.startswith("❌") or " is thinking..." in response_text or "在思考中" in response_text:
+            logger.warning(f"[WS] AI响应失败，不写入历史: {response_text[:80]}")
+            await websocket.send_json({
+                "type": "error",
+                "content": None,
+                "message": response_text,
+                "timestamp": datetime.now().isoformat()
+            })
+            return
 
         # 发送响应
         await websocket.send_json({
