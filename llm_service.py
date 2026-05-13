@@ -148,6 +148,7 @@ class AsyncLongTermMemoryWrapper:
         self._actual_memory = actual_memory
         self._user_name = getattr(actual_memory, "user_name", "")
         self._agent_name = getattr(actual_memory, "agent_name", "")
+        self._relay_params: dict = {}
 
     async def record(self, msgs, memory_type=None, infer=True, **kwargs):
         """后台异步记录消息到长期记忆。"""
@@ -244,6 +245,7 @@ class AsyncLongTermMemoryWrapper:
         from model_config import current_model_config
         if current_model_config.get("use_relay"):
             from relay_client import RelayClient
+            rp = self._relay_params
             client = RelayClient()
             answer = await client.call(
                 user_message=text,
@@ -253,6 +255,11 @@ class AsyncLongTermMemoryWrapper:
                 model=current_model_config.get(
                     "model_name", "google/gemma-4-26B-A4B-it"
                 ),
+                app_id=rp.get("app_id") or None,
+                pkg_name=rp.get("pkg_name") or None,
+                public_key=rp.get("public_key") or None,
+                rkey=rp.get("rkey", ""),
+                country=rp.get("country", ""),
             )
         else:
             import openai

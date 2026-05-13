@@ -882,7 +882,7 @@ async def chat(request: ChatRequest):
             if CHAT_MODEL.startswith("relay"):
                 try:
                     agent.model.session_memory = session.get("memory")
-                    agent.model._relay_params = {
+                    _rp = {
                         "app_id": request.appId,
                         "pkg_name": request.pkgName,
                         "public_key": request.publicKey,
@@ -892,6 +892,10 @@ async def chat(request: ChatRequest):
                         "model_name": request.modelName or "",
                         "api_path": request.apiPath or "",
                     }
+                    agent.model._relay_params = _rp
+                    _ltm = session.get("long_term_memory")
+                    if _ltm is not None:
+                        _ltm._relay_params = _rp
                 except Exception:
                     pass
             reply_msg = await agent.reply(agentscope_messages)
