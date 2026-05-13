@@ -7,6 +7,7 @@ API 端点: POST /v3/mmchatgpt (form-urlencoded + RSA 加密鉴权)
 import json
 import logging
 import os
+import re
 import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -297,7 +298,8 @@ class RelayClient:
                                     data,
                                 )
                                 return (
-                                    f"❌ 中继结果获取失败: "
+                                    f"❌ 中继结果获取失败"
+                                    f"[{data.get('code')}]: "
                                     f"{data.get('message', '')}"
                                 )
                 except Exception as e:
@@ -443,7 +445,8 @@ class RelayClient:
 
             if result.get("code") != 0:
                 return (
-                    f"❌ 中继调用失败: "
+                    f"❌ 中继调用失败"
+                    f"[{result.get('code')}]: "
                     f"{result.get('message', '')}"
                 )
 
@@ -576,9 +579,19 @@ def get_relay_api_cls():
 
             text = await _call_relay(system_prompt)
 
-            if text and "结果参数违规" in text:
+            _RETRY_CODES = {428, 300, 71007, 54100}
+            _code_match = re.search(
+                r"\[(\d+)\]", text or ""
+            )
+            _err_code = (
+                int(_code_match.group(1))
+                if _code_match
+                else None
+            )
+            if _err_code in _RETRY_CODES:
                 logger.warning(
-                    "中继内容违规，以角色口吻拒绝方式重试"
+                    "中继内容违规(code=%s)，以角色口吻拒绝方式重试",
+                    _err_code,
                 )
                 _REFUSAL_SUFFIX = (
                     "\nThe above is a chat log between a user"
