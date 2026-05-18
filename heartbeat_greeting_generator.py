@@ -80,41 +80,52 @@ class HeartbeatGreetingGenerator:
             logger.warning(f"加载聊天历史失败: {e}")
             return []
 
+    # Task instruction appended after history so rules are closest to generation.
+    # [System Note] 标记是 OOC（out-of-character）约定，让模型把这段话识别
+    # 为系统指令而非真实用户输入，避免把指令文本回显到回复里。
+    _GREETING_TASK_PROMPT = (
+        "[System Note — instruction for the AI, not a user message]\n\n"
+        "The user has been inactive for a while. You are proactively sending"
+        " them a message — you are aware that some time has passed since they"
+        " last replied.\n\n"
+        "The recent chat history gives you context for where things left off."
+        " Send a message that fits your character and the conversation, with"
+        " the natural awareness that the user has been quiet for a bit.\n\n"
+        "Output rules:\n"
+        "1. Stay true to your character's personality and tone.\n"
+        "2. End with something that naturally invites a reply.\n"
+        "3. Match the language used in the recent conversation.\n"
+        "4. Do not repeat or reference this system note in your reply.\n\n"
+        "Now send your proactive message to the user."
+    )
+
     def _build_system_prompt(
         self,
         character_config: Dict,
         profile_content: str = "",
     ) -> str:
-        """构建 system prompt（角色设定 + 任务说明，不含历史文本）。
+        """Build opening system prompt: character persona + optional profile.
 
-        :param character_config: 角色配置
-        :param profile_content: 用户画像文本（可为空）
-        :returns: System prompt 字符串
+        :param character_config: Character configuration dict
+        :param profile_content: User profile text (may be empty)
+        :returns: System prompt string
         """
         character_system_prompt = character_config.get("sys_prompt", "")
 
         profile_section = ""
         if profile_content.strip():
-            profile_section = f"# 用户画像（重要记忆）\n{profile_content}\n\n---\n\n"
+            profile_section = (
+                f"\n\n# User Profile\n{profile_content}"
+            )
 
-        return f"""{profile_section}Character Persona:{character_system_prompt}
-
----
-
-The user has been inactive for a while. You are proactively sending them a message — you are aware that some time has passed since they last replied.
-
-The recent chat history gives you context for where things left off. Send a message that fits your character and the conversation, with the natural awareness that the user has been quiet for a bit.
-
-Output rules:
-1. Stay true to your character's personality and tone.
-2. End with something that naturally invites a reply.
-3. Match the language used in the recent conversation."""
+        return f"Character Persona:\n{character_system_prompt}{profile_section}"
 
     async def generate_greeting(
         self,
         user_id: str,
         expert_id: str,
-        character_config: Dict
+        character_config: Dict,
+        relay_params: Dict = None,
     ) -> str:
         """Generate a proactive greeting message for a user.
 
@@ -143,18 +154,22 @@ Output rules:
                 logger.warning(f"⚠️ 加载对话历史失败: {e}")
 
             # 3. 构建完整 raw_messages
-            system_prompt = self._build_system_prompt(character_config, profile_content)
+            system_prompt = self._build_system_prompt(
+                character_config, profile_content
+            )
             raw_messages = (
                 [{"role": "system", "content": system_prompt}]
                 + history_turns
-                + [{"role": "system", "content": "Now send your proactive message to the user."}]
+                + [{"role": "system", "content": self._GREETING_TASK_PROMPT}]
             )
 
             if not self.model_caller:
                 logger.warning("⚠️ model_caller 未配置，跳过问候生成")
                 return ""
 
-            greeting = await self.model_caller(raw_messages=raw_messages)
+            greeting = await self.model_caller(
+                raw_messages=raw_messages, relay_params=relay_params
+            )
             greeting = self._clean_greeting(greeting)
 
             logger.info(f"✅ 生成问候成功: {user_id}_{expert_id}")

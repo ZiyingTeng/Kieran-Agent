@@ -48,11 +48,6 @@ from user_profile_manager_v2 import (
 )
 
 # 导入推送服务
-from push_service import (
-    get_push_service, initialize_push_service
-)
-from push_service.api import router as push_api_router
-
 # 导入 Redis 会话管理器
 from session_manager import (
     SessionManager, get_session_manager, initialize_session_manager
@@ -175,7 +170,15 @@ _greeting_generator: Optional[HeartbeatGreetingGenerator] = None
 
 # ============= 记忆大小配置 =============
 
-# 私聊：保留最近 20 条消息
+# 私聊：保留最近 20 条消息（≈10 轮对话）。trim_memory 是销毁式的，超出
+# 窗口的消息会从 RedisMemory 永久删除（PostgreSQL chat_history 里仍有完
+# 整记录）。短期窗口只负责「当前会话的语义连贯」；跨会话的叙事记忆
+# （昨晚剧情、关系进展、关键事件）由用户画像 events/relationship 表
+# 注入到 system prompt 里承载，不依赖短期窗口。
+# 配合 cache-miss 时从 PG 回灌（session_manager.get_or_create_session），
+# 实际上下文：
+# - 当前会话：最近 20 条原文 + 注入的最新用户画像
+# - 重连/几小时后回来：DB 回灌最近 20 条 + 注入最新画像
 MAX_PRIVATE_CHAT_HISTORY = 20
 
 # 群聊：保留最近 50 条消息
@@ -201,6 +204,44 @@ from llm_service import (
 )
 
 
+
+
+# ============= 用户画像异步总结 =============
+
+async def _profile_summarize_async(
+    user_id: str,
+    expert_id: str,
+    long_term_memory,
+    relay_params: Optional[dict] = None,
+) -> None:
+    """每 5 轮触发的用户画像总结（fire-and-forget，不阻塞主聊响应）。
+
+    从 mem0 拉所有事实 → ORGANIZE_PROMPT 合成结构化 JSON →
+    覆盖写入 user_profiles/{user_id}_{expert_id}.json
+    """
+    try:
+        profile_mgr = get_profile_manager()
+
+        async def model_caller(prompt: str) -> str:
+            return await call_llm_with_config(
+                user_message=prompt,
+                system_prompt=(
+                    "You are a professional user-profile curator."
+                    " Output strict JSON only."
+                ),
+                model_config=current_model_config,
+                history=None,
+                relay_params=relay_params,
+            )
+
+        await profile_mgr.summarize_and_save(
+            user_id=user_id,
+            expert_id=expert_id,
+            model_caller=model_caller,
+            long_term_memory=long_term_memory,
+        )
+    except Exception as e:
+        logger.warning(f"⚠️ 画像异步总结失败 {user_id}/{expert_id}: {e}")
 
 
 # ============= 角色配置管理 =============
@@ -290,6 +331,7 @@ class ChatRequest(BaseModel):
     publicKey: Optional[str] = None
     rkey: Optional[str] = None
     country: Optional[str] = None
+    platformId: Optional[str] = None
 
     # 重新生成相关字段
     retry: Optional[bool] = False  # 是否为重新生成请求
@@ -485,21 +527,11 @@ async def startup_event():
         create_agent_fn=create_agent,
         create_mem0_fn=create_memory_for_user_and_girlfriend,
     )
-    logger.info("✅ SessionManager 就绪，工厂函数已注册")
-
-    logger.info("🚀 初始化推送服务...")
-
-    # 初始化推送服务
-    try:
-        push_service = await initialize_push_service()
-        logger.info("✅ 推送服务初始化完成")
-    except Exception as e:
-        logger.warning(f"⚠️ 推送服务初始化失败: {e}")
-        logger.info("推送功能将使用 WebSocket 直连模式")
-
-    # 注册推送服务 API 路由
-    app.include_router(push_api_router)
-    logger.info("✅ 推送服务 API 路由已注册")
+    sm.set_chat_history_loader(
+        load_history_fn=load_recent_chat_history,
+        limit=MAX_PRIVATE_CHAT_HISTORY,
+    )
+    logger.info("✅ SessionManager 就绪，工厂函数 + 历史回灌器已注册")
 
     # ---- 心跳调度器: 多 Worker 模式下只由一个 Worker 运行 ----
     # 使用 Redis SETNX 做 Leader 选举，避免重复推送
@@ -538,7 +570,9 @@ async def startup_event():
     )
 
     # 每个 Worker 都初始化问候生成器（trigger 端点任意 worker 可用）
-    async def greeting_model_caller(raw_messages: list) -> str:
+    async def greeting_model_caller(
+        raw_messages: list, relay_params: dict = None
+    ) -> str:
         """用 relay-gemma4-remote 生成问候（带完整对话历史轮次）"""
         from model_config import MODEL_CONFIGS
         from llm_service import call_llm_with_config
@@ -547,6 +581,7 @@ async def startup_event():
             system_prompt="",
             model_config=MODEL_CONFIGS["relay-gemma4-remote"],
             raw_messages=raw_messages,
+            relay_params=relay_params,
         )
         if not result:
             raise RuntimeError("问候生成 LLM 调用失败")
@@ -569,16 +604,50 @@ async def startup_event():
         )
 
         async def generate_greeting_callback(user_id, expert_id, **_kwargs):
-            """问候生成回调"""
+            """问候生成回调：取出用户上次的 relay_params 以便中继推送到正确客户端"""
+            import json as _json
             character_config = character_manager.get(expert_id) or {}
+            relay_params = None
+            try:
+                _sm = get_session_manager()
+                stored = await _sm._redis.get(
+                    f"heartbeat_relay_params:{user_id}:{expert_id}"
+                )
+                if stored:
+                    relay_params = _json.loads(stored)
+            except Exception:
+                pass
             return await _greeting_generator.generate_greeting(
                 user_id=user_id,
                 expert_id=expert_id,
-                character_config=character_config
+                character_config=character_config,
+                relay_params=relay_params,
             )
 
+        async def _heartbeat_push(
+            user_id: str, expert_id: str, message: str
+        ) -> bool:
+            """问候推送：relay 负责传达，此处只持久化到聊天历史。"""
+            try:
+                from database import get_postgres_pool
+                pool = await get_postgres_pool()
+                if pool:
+                    async with pool.acquire() as conn:
+                        await conn.execute(
+                            "INSERT INTO chat_history"
+                            " (user_id, expert_id, role, content, emotion)"
+                            " VALUES ($1, $2, $3, $4, $5)",
+                            user_id, expert_id, "assistant", message, "爱意",
+                        )
+                    logger.info(
+                        "💾 问候消息已保存: %s/%s", user_id, expert_id
+                    )
+            except Exception as e:
+                logger.warning("⚠️ 保存问候消息失败: %s", e)
+            return True
+
         _heartbeat_scheduler.register_greeting_generator(generate_greeting_callback)
-        _heartbeat_scheduler.register_push_notification(push_notification_with_service)
+        _heartbeat_scheduler.register_push_notification(_heartbeat_push)
 
         await _heartbeat_scheduler.load_from_db()
         _heartbeat_scheduler.start()
@@ -602,14 +671,6 @@ async def startup_event():
 async def shutdown_event():
     """应用关闭时清理资源"""
     global _heartbeat_scheduler
-
-    # 关闭推送服务
-    try:
-        push_service = get_push_service()
-        await push_service.close()
-        logger.info("🛑 推送服务已关闭")
-    except Exception as e:
-        logger.warning(f"⚠️ 关闭推送服务失败: {e}")
 
     if _heartbeat_scheduler:
         _heartbeat_scheduler.stop()
@@ -869,6 +930,34 @@ async def chat(request: ChatRequest):
             # 限制短期记忆大小，避免过多历史导致模型输入过大
             await SessionManager.trim_memory(memory, MAX_PRIVATE_CHAT_HISTORY)
 
+            # 🆕 per-request 注入用户画像。每次请求都从磁盘读最新画像，
+            # 用 agent._base_sys_prompt 做底（avoid 反复叠加），合并后写
+            # 回 agent._sys_prompt。这样画像更新（每 5 轮）能立刻被下一
+            # 次 reply 看到，不受 1 小时 agent LRU 缓存的影响。
+            #
+            # 注意：ReActAgent 的 sys_prompt 是 @property（只读 getter，
+            # 还会动态拼上 agent_skill_prompt 后缀），所以我们只能写
+            # _sys_prompt 这个底层字段，读 base 时也要直接读 _sys_prompt
+            # 避免把 skill 后缀错存进 base 里。
+            try:
+                profile_mgr = get_profile_manager()
+                profile_content = profile_mgr.load_profile_sync(
+                    request.userId, request.expertId,
+                )
+                base_prompt = getattr(agent, "_base_sys_prompt", None)
+                if base_prompt is None:
+                    # 兼容上线前已在 LRU 缓存里的旧 agent（无 _base_sys_prompt）
+                    base_prompt = getattr(agent, "_sys_prompt", "")
+                    agent._base_sys_prompt = base_prompt
+                if profile_content and profile_content.strip():
+                    agent._sys_prompt = profile_mgr.inject_into_prompt(
+                        base_prompt, profile_content,
+                    )
+                else:
+                    agent._sys_prompt = base_prompt
+            except Exception as e:
+                logger.warning(f"⚠️ 用户画像注入失败: {e}")
+
             # 🔄 转换消息格式：工具调用完全由 ReActAgent 处理
             agentscope_messages = [
                 Msg(
@@ -891,11 +980,24 @@ async def chat(request: ChatRequest):
                         "image_url": request.imageUrl or "",
                         "model_name": request.modelName or "",
                         "api_path": request.apiPath or "",
+                        "platform_id": request.platformId or "",
                     }
                     agent.model._relay_params = _rp
                     _ltm = session.get("long_term_memory")
                     if _ltm is not None:
                         _ltm._relay_params = _rp
+                    # 存储 relay_params 供心跳问候使用（TTL 与 rkey 有效期一致）
+                    try:
+                        import json as _json
+                        _sm = get_session_manager()
+                        await _sm._redis.setex(
+                            f"heartbeat_relay_params"
+                            f":{request.userId}:{request.expertId}",
+                            172800,  # 48 hours
+                            _json.dumps(_rp),
+                        )
+                    except Exception:
+                        pass
                 except Exception:
                     pass
             reply_msg = await agent.reply(agentscope_messages)
@@ -961,6 +1063,32 @@ async def chat(request: ChatRequest):
                 )
             except Exception as e:
                 logger.warning(f"保存聊天历史到数据库失败: {e}")
+
+            # 🆕 累计对话轮次，每 5 轮异步触发画像总结
+            # （不 await，不阻塞返回；失败 fail-open，画像保持上一版本）
+            try:
+                rounds = profile_mgr.increment_round(
+                    request.userId, request.expertId,
+                )
+                if profile_mgr.should_trigger_summary(
+                    request.userId, request.expertId, rounds,
+                ):
+                    _relay_for_profile = (
+                        getattr(agent.model, "_relay_params", None)
+                        if CHAT_MODEL.startswith("relay") else None
+                    )
+                    asyncio.create_task(_profile_summarize_async(
+                        user_id=request.userId,
+                        expert_id=request.expertId,
+                        long_term_memory=session.get("long_term_memory"),
+                        relay_params=_relay_for_profile,
+                    ))
+                    logger.info(
+                        f"🧠 触发画像总结 (rounds={rounds}): "
+                        f"{request.userId}/{request.expertId}"
+                    )
+            except Exception as e:
+                logger.warning(f"⚠️ 画像轮次/触发失败: {e}")
 
             # 返回AIGirl格式的响应
             return ChatResponse(
@@ -1612,7 +1740,18 @@ async def trigger_heartbeat_greeting(user_id: str, expert_id: str):
         if not greeting:
             return {"success": False, "error": "LLM 未返回内容"}
 
-        await push_notification_with_service(user_id, expert_id, greeting)
+        try:
+            pool = await get_postgres_pool()
+            if pool:
+                async with pool.acquire() as conn:
+                    await conn.execute(
+                        "INSERT INTO chat_history"
+                        " (user_id, expert_id, role, content, emotion)"
+                        " VALUES ($1, $2, $3, $4, $5)",
+                        user_id, expert_id, "assistant", greeting, "爱意",
+                    )
+        except Exception as save_err:
+            logger.warning(f"保存问候消息失败: {save_err}")
         return {
             "success": True,
             "message": "问候已发送",
@@ -1715,18 +1854,6 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, expert_id: str)
 
     logger.info(f"✅ WebSocket 连接建立: {user_id} -> {expert_id} ({connection_id})")
 
-    # 桥接：同步注册到 PushService 的 ConnectionRegistry
-    try:
-        push_service = get_push_service()
-        await push_service.connection_registry.register_connection(
-            user_id=user_id,
-            expert_id=expert_id,
-            connection_id=connection_id,
-            websocket=websocket
-        )
-    except Exception as e:
-        logger.debug(f"注册到 PushService 连接注册表失败: {e}")
-
     # 更新心跳（用户现在在线）- 使用非阻塞方式
     try:
         heartbeat_scheduler = get_heartbeat_scheduler()
@@ -1783,12 +1910,6 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str, expert_id: str)
             user_to_connection.pop(user_id, None)
             user_expert_mapping.pop(user_id, None)
 
-        # 同步从 PushService 连接注册表注销
-        try:
-            push_service = get_push_service()
-            await push_service.connection_registry.unregister_connection(user_id, connection_id)
-        except Exception:
-            pass
 
 
 async def handle_websocket_chat(user_id: str, expert_id: str, content: str, websocket: WebSocket):
@@ -1893,97 +2014,6 @@ async def handle_websocket_chat(user_id: str, expert_id: str, content: str, webs
         })
 
 
-async def push_notification_with_service(user_id: str, expert_id: str, message: str) -> bool:
-    """
-    使用 PushService 推送消息给用户 (支持离线推送)
-
-    智能路由策略:
-    1. WebSocket (如果在线)
-    2. 平台推送 (FCM/APNs/WebPush)
-    3. 离线队列 (兜底)
-
-    Args:
-        user_id: 用户ID
-        expert_id: 角色ID
-        message: 要推送的消息
-
-    Returns:
-        bool: 推送是否成功 (至少一个渠道成功)
-    """
-    try:
-        push_service = get_push_service()
-
-        result = await push_service.send_to_user(
-            user_id=user_id,
-            expert_id=expert_id,
-            title="想念你～",
-            body=message,
-            message_type="greeting",
-            priority=3  # 低优先级
-        )
-
-        # Phase 2c: 将问候消息保存到聊天历史，确保刷新页面后仍然可见
-        try:
-            pool = await get_postgres_pool()
-            if pool:
-                async with pool.acquire() as conn:
-                    await conn.execute(
-                        "INSERT INTO chat_history (user_id, expert_id, role, content, emotion) VALUES ($1, $2, $3, $4, $5)",
-                        user_id, expert_id, "assistant", message, "爱意"
-                    )
-                logger.info(f"💾 问候消息已保存到聊天历史: {user_id}/{expert_id}")
-        except Exception as e:
-            logger.warning(f"保存问候到聊天历史失败: {e}")
-
-        return result.delivered or result.queued
-
-    except Exception as e:
-        logger.error(f"❌ PushService 推送失败: {e}")
-        # 降级到原有 WebSocket 推送
-        return await push_websocket_notification(user_id, expert_id, message)
-
-
-async def push_websocket_notification(user_id: str, expert_id: str, message: str) -> bool:
-    """
-    通过 WebSocket 推送消息给用户
-
-    Args:
-        user_id: 用户ID
-        expert_id: 角色ID
-        message: 要推送的消息
-
-    Returns:
-        bool: 推送是否成功
-    """
-    connection_id = user_to_connection.get(user_id)
-    if not connection_id:
-        logger.debug(f"⚠️ 用户 {user_id} 未在线")
-        return False
-
-    websocket = active_websockets.get(connection_id)
-    if not websocket:
-        logger.debug(f"⚠️ 连接 {connection_id} 不存在")
-        return False
-
-    try:
-        response = {
-            "type": "heartbeat_greeting",
-            "expert_id": expert_id,
-            "content": message,
-            "timestamp": datetime.now().isoformat()
-        }
-        await websocket.send_json(response)
-        logger.info(f"✅ WebSocket 推送成功: {user_id}")
-        return True
-
-    except Exception as e:
-        logger.error(f"❌ WebSocket 推送失败: {e}")
-        # 清理失效的连接 — 只清理属于本连接的映射
-        active_websockets.pop(connection_id, None)
-        connection_to_user.pop(connection_id, None)
-        if user_to_connection.get(user_id) == connection_id:
-            user_to_connection.pop(user_id, None)
-        return False
 
 
 # ============= 前端界面 =============

@@ -138,6 +138,15 @@ class SessionManager:
         # Factory functions — registered by app.py via set_factories()
         self._create_agent_fn: Optional[Callable] = None
         self._create_mem0_fn: Optional[Callable] = None
+        # Chat-history loader — registered by app.py via
+        # set_chat_history_loader(); used on cache-miss to rehydrate
+        # RedisMemory from PostgreSQL when the Redis short-term keys have
+        # expired (default RedisMemory key_ttl=session_ttl=2h, so after
+        # >2h of total inactivity the next request lands on an empty
+        # RedisMemory; without rehydration the agent appears to "forget
+        # everything").
+        self._load_history_fn: Optional[Callable] = None
+        self._load_history_limit: int = 20
 
         logger.info(
             f"✅ SessionManager 初始化 (prefix={key_prefix}, "
@@ -154,6 +163,23 @@ class SessionManager:
         """Register factory functions for rebuilding Agent / Mem0."""
         self._create_agent_fn = create_agent_fn
         self._create_mem0_fn = create_mem0_fn
+
+    def set_chat_history_loader(
+        self,
+        load_history_fn: Callable,
+        limit: int = 20,
+    ) -> None:
+        """Register PostgreSQL chat-history loader for cache-miss rehydration.
+
+        :param load_history_fn: ``async (user_id, expert_id, limit) -> list``
+            returning ``[{"role": "user"|"assistant", "content": str}, ...]``
+            in chronological order (oldest first).
+        :param limit: Maximum number of messages to rehydrate. Should match
+            ``MAX_PRIVATE_CHAT_HISTORY`` so the next ``trim_memory`` call
+            doesn't immediately drop the freshly loaded rows.
+        """
+        self._load_history_fn = load_history_fn
+        self._load_history_limit = limit
 
     # ---- Key helpers ----
 
@@ -254,6 +280,40 @@ class SessionManager:
         # Build components
         memory = self.create_memory(user_id, expert_id, session_id)
         long_term_memory = self.get_or_create_mem0(user_id, expert_id)
+
+        # Rehydrate RedisMemory from PostgreSQL if it's empty (Redis
+        # key TTL expired, or this is a brand-new session_id for an
+        # existing user). When RedisMemory已有内容（cache 失效但 key
+        # 未过期），不重复加载——直接用现有的更准。
+        if self._load_history_fn is not None:
+            try:
+                cur_size = await memory.size()
+                if cur_size == 0:
+                    rows = await self._load_history_fn(
+                        user_id, expert_id, self._load_history_limit,
+                    )
+                    if rows:
+                        from agentscope.message import Msg
+                        msgs = [
+                            Msg(
+                                name=(
+                                    user_id if r.get("role") == "user"
+                                    else expert_id
+                                ),
+                                role=r.get("role", "user"),
+                                content=r.get("content", ""),
+                            )
+                            for r in rows
+                            if r.get("content")
+                        ]
+                        if msgs:
+                            await memory.add(msgs)
+                            logger.info(
+                                "♻️ 短期记忆回灌: %s/%s/%s ← DB %d 条",
+                                user_id, expert_id, session_id, len(msgs),
+                            )
+            except Exception as e:
+                logger.warning(f"⚠️ 短期记忆回灌失败: {e}")
 
         if not self._create_agent_fn:
             raise RuntimeError("Agent factory not set.")

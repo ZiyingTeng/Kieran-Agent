@@ -260,6 +260,7 @@ class AsyncLongTermMemoryWrapper:
                 public_key=rp.get("public_key") or None,
                 rkey=rp.get("rkey", ""),
                 country=rp.get("country", ""),
+                platform_id=rp.get("platform_id", ""),
             )
         else:
             import openai
@@ -513,21 +514,11 @@ def create_agent(userId: str, expertId: str, memory, long_term_memory) -> "ReAct
         "description",
         girlfriend_config.get("sys_prompt", "你是一个友好的AI助手。"),
     )
-    wrapped_sys_prompt = original_sys_prompt
-
-    # 用户画像注入暂时停用（画像系统待架构优化后重新启用）
-    # profile_manager = get_profile_manager()
-    # try:
-    #     profile_content = profile_manager.load_profile_sync(userId, expertId)
-    #     final_sys_prompt = profile_manager.inject_into_prompt(
-    #         wrapped_sys_prompt, profile_content
-    #     )
-    #     if profile_content.strip():
-    #         logger.info(f"✅ 已加载用户画像: {userId} + {expertId}")
-    # except Exception as e:
-    #     logger.warning(f"⚠️ 加载用户画像失败: {e}")
-    #     final_sys_prompt = wrapped_sys_prompt
-    final_sys_prompt = wrapped_sys_prompt
+    # 用户画像注入不在此处做。Agent 对象在 LRU 缓存中可能存活 1 小时，
+    # 如果在 create_agent 时一次性注入，5 轮一次的画像更新就拿不到了。
+    # 改为在 app.py 主聊路径里 per-request 注入（用 agent._base_sys_prompt
+    # 拿原始 persona，每次合并最新画像后赋给 agent.sys_prompt）。
+    final_sys_prompt = original_sys_prompt
 
     # 根据 CHAT_MODEL 构建模型实例
     if CHAT_MODEL.startswith("relay"):
@@ -600,6 +591,9 @@ def create_agent(userId: str, expertId: str, memory, long_term_memory) -> "ReAct
         toolkit=toolkit,
     )
     agent.set_console_output_enabled(False)
+    # 保存原始 persona，供 app.py 主聊路径 per-request 注入用户画像时
+    # 拿到不含 profile 的基础 prompt，避免反复叠加。
+    agent._base_sys_prompt = final_sys_prompt
     return agent
 
 
@@ -740,6 +734,7 @@ async def call_llm_with_config(
     model_config: Dict,
     history: List[Dict] = None,
     raw_messages: List[Dict] = None,
+    relay_params: Dict = None,
 ) -> str:
     """使用指定配置调用 LLM，支持多模型路由。
 
@@ -749,6 +744,8 @@ async def call_llm_with_config(
     :param history: 对话历史（可选），格式 [{user: ..., model: ...}]
     :param raw_messages: 预构建的 OpenAI 格式消息列表（direct_api 时优先使用，
         会跳过 system_prompt/history/user_message 的自动组装）
+    :param relay_params: 动态鉴权参数（app_id/pkg_name/public_key/rkey/country），
+        与私聊保持一致；None 时回退到环境变量默认值
     :returns: LLM 回复文本
     """
     try:
@@ -817,13 +814,13 @@ async def call_llm_with_config(
             client = RelayClient()
             # 从 raw_messages 或参数重建 system/history/user
             if raw_messages is not None:
-                sys_p = ""
+                sys_parts: list[str] = []
                 hist: list[dict] = []
                 last_user = user_message
                 for m in raw_messages:
                     r, c = m.get("role"), m.get("content", "")
                     if r == "system":
-                        sys_p = c
+                        sys_parts.append(c)
                     elif r == "user":
                         if last_user:
                             hist.append(
@@ -839,6 +836,17 @@ async def call_llm_with_config(
                         hist.append(
                             {"role": "assistant", "content": c}
                         )
+                # 中继 v3 要求 input_txt 非空。若末尾是 system（如心跳问候
+                # 的任务指令），把它提升为 input_txt 并从 system 段剔除，
+                # 避免重复出现。
+                if (
+                    not last_user
+                    and raw_messages
+                    and raw_messages[-1].get("role") == "system"
+                    and sys_parts
+                ):
+                    last_user = sys_parts.pop()
+                sys_p = "\n\n".join(sys_parts)
             else:
                 sys_p = system_prompt
                 hist = []
@@ -853,14 +861,21 @@ async def call_llm_with_config(
                                 {"role": "assistant",
                                  "content": h["model"]}
                             )
+            rp = relay_params or {}
             return await client.call(
                 user_message=last_user if raw_messages else user_message,
                 system_prompt=sys_p if raw_messages else system_prompt,
                 history=hist,
-                model=model_name,
-                api_path=model_config.get(
+                model=rp.get("model_name") or model_name,
+                api_path=rp.get("api_path") or model_config.get(
                     "relay_path", "/v3/openrouterchatgpt"
                 ),
+                app_id=rp.get("app_id") or None,
+                pkg_name=rp.get("pkg_name") or None,
+                public_key=rp.get("public_key") or None,
+                rkey=rp.get("rkey", ""),
+                country=rp.get("country", ""),
+                platform_id=rp.get("platform_id", ""),
             )
 
         return f"❌ 不支持的模型配置: {model_name}"

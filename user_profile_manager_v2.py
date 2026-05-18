@@ -88,7 +88,20 @@ Your task is to synthesise raw memory facts into a qualitative character portrai
 of the user. Do NOT simply copy facts — instead, distil patterns, tendencies, and \
 emotional characteristics that help the AI understand who this person is.
 
+## Today's Date
+{today} (UTC)
+
+**Timezone note**: All dates are in UTC. The user is likely speaking from a \
+local timezone which can differ from UTC by up to ±14 hours, so when they say \
+things like "last night" or "yesterday" the actual UTC date may shift by one \
+day. When writing event time markers, prefer the precise [YYYY-MM-DD] date \
+from the fact prefix, but in the event's description use slightly fuzzy \
+phrasing like "around that time" / "that night" rather than asserting an \
+exact moment, so the AI doesn't contradict the user's local-time framing.
+
 ## Raw Memory Facts
+(Each fact may be prefixed with [YYYY-MM-DD] showing when it was originally \
+recorded in UTC — use these dates to set time markers on events.)
 {facts_text}
 
 ## Existing Profile
@@ -107,7 +120,7 @@ Output schema:
 {{
   "user_traits": ["qualitative description 1", "qualitative description 2"],
   "relationship": ["qualitative description 1"],
-  "events": ["qualitative description 1"],
+  "events": ["[YYYY-MM-DD] event description 1"],
   "preferences": ["qualitative description 1"],
   "agreements": ["qualitative description 1"]
 }}
@@ -121,15 +134,44 @@ Rules:
   Good: "Has a strong preference for spicy, bold-flavoured food (e.g. hot pot)."
 - You MAY infer reasonable patterns from repeated behaviour, but flag uncertainty \
   with "seems to" or "tends to" rather than asserting as absolute fact.
-- Record only traits of the USER; never record traits of the AI character.
+- **Record only the USER's own attributes, actions, statements, or experiences;
+  NEVER record the AI character's behaviour, dialogue, or attitudes — even
+  when the raw fact describes them.** Some raw facts may be polluted and
+  describe what the AI character said or did rather than the user. Before
+  writing any entry, identify whose action/state the underlying fact is
+  about; if it is the AI character (or an unclear/ambiguous subject), drop
+  it entirely. When in doubt, skip rather than guess.
 - Deduplicate: if the existing profile already captures a trait well, keep it \
   unchanged unless newer facts update or contradict it.
 - Each entry must be one concise sentence (≤ 25 words).
+- **For "events" entries, prefix with a time marker in square brackets**: \
+  prefer the exact date from the fact's [YYYY-MM-DD] prefix (e.g. \
+  "[2026-05-10] Late-night walk along the beach, intimate mood, user broached \
+  meeting the AI's parents."). If no date is available, fall back to a relative \
+  marker like "[recently]" or "[last week]". This lets the AI place events on \
+  a timeline when the user references "that night" / "last week".
 - Use an empty array [] for any table with no relevant information.
-- LANGUAGE: write every entry in Chinese. If a concept has no natural Chinese \
-  expression, use English in parentheses.
-- If there is nothing new to add or change, reproduce the existing profile \
-  unchanged.
+- LANGUAGE: write every entry in English. The profile will be injected into \
+  the system prompt across a multilingual user base; English is the neutral \
+  carrier that minimises interference with the AI's language detection when \
+  replying to the user. If a name, place, or concept from the user's own \
+  language has no natural English equivalent, keep the original term verbatim \
+  (transliteration optional). Do not translate the user's preferred name or \
+  nicknames; quote them as-is.
+- **SIZE LIMITS — enforce on EVERY synthesis, even when no new facts are
+  present.** Cap each table at: user_traits ≤ 10, relationship ≤ 10,
+  events ≤ 20, preferences ≤ 15, agreements ≤ 10. When a table is over
+  its cap, do NOT simply drop excess entries; merge the OLDEST entries
+  (for events use the [YYYY-MM-DD] prefix to identify oldest; for the
+  other tables use the order of the existing array, treating the front
+  as older) into a single concise summary entry that preserves the gist
+  of what was merged. For events specifically, the merged summary entry
+  should carry a fuzzy time marker like "[before YYYY-MM]" or "[earlier]"
+  so the AI still knows the merged batch came from older history. Always
+  keep the most recent / most specific entries verbatim; only compress
+  the historical tail.
+- If there is nothing new to add or change AND every table is already
+  within its size cap, reproduce the existing profile unchanged.
 """
 
     # Fallback prompt: extract profile directly from conversation history
@@ -270,6 +312,7 @@ in the conversation. Do not translate.
             if facts_text:
                 # 使用 mem0 事实
                 prompt = self.ORGANIZE_PROMPT.format(
+                    today=datetime.now().strftime("%Y-%m-%d"),
                     facts_text=facts_text,
                     existing_text=existing_text or "（暂无）",
                     def_user_traits=TABLE_DEFINITIONS["user_traits"],
@@ -365,13 +408,21 @@ in the conversation. Do not translate.
                 logger.info(f"mem0 中无事实: {user_id}")
                 return None
 
-            # 格式化为文本
+            # 格式化为文本（保留时间戳信息，供 ORGANIZE_PROMPT 给 events
+            # 打时间标记。Mem0 的字段里通常有 updated_at / created_at，
+            # 形如 "2026-05-10T14:23:01.000000-07:00"，我们只取日期部分。）
             lines = []
             for mem in memories:
                 if isinstance(mem, dict):
                     text = mem.get("memory", "") or mem.get("content", "")
                     if text:
-                        lines.append(f"- {text}")
+                        ts = (
+                            mem.get("updated_at")
+                            or mem.get("created_at")
+                            or ""
+                        )
+                        ts_prefix = f"[{ts[:10]}] " if len(ts) >= 10 else ""
+                        lines.append(f"- {ts_prefix}{text}")
                 elif isinstance(mem, str):
                     lines.append(f"- {mem}")
 
